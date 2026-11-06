@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aplikasi Kesiswaan</title>
+<meta name="theme-color" content="#1E3A8A">
+<meta name="description" content="Aplikasi Kesiswaan Madrasah">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://script.google.com" crossorigin><link rel="preconnect" href="https://script.googleusercontent.com" crossorigin><!-- sambungan ke API disiapkan lebih awal -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><!-- tidak memblokir tampilan saat jaringan lambat -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-dash" viewBox="0 0 24 24"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 11h8v10h-8zM3 14h8v7H3z"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2 4 2 4H5"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20zM12 10v4M12 17.5v.5"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M16 5a3 3 0 0 1 0 6M18 14c2 .7 3 2.6 3 6"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+<symbol id="i-out" viewBox="0 0 24 24"><path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H9"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 0 2 2h13v-2M9 7h6"/></symbol>
+<symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v6a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 14v4M8 21h8"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3 20c0-3.6 3-6 7-6s7 2.4 7 6M19 8v6M16 11h6"/></symbol>
+</defs></svg>
+
+<main id="login" class="login" hidden>
+  <form id="lg" class="card lc">
+    <div class="logo">K</div><h1 id="ln">Aplikasi Kesiswaan</h1><p class="mu">Masuk dengan akun dari sekolah</p>
+    <label>Nama pengguna<input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+    <label>Kata sandi<input name="p" type="password" autocomplete="current-password" required></label>
+    <p id="lerr" class="er" role="alert"></p>
+    <button class="btn pri w">Masuk</button>
+    <p style="text-align:center;margin:12px 0 0"><button type="button" class="btn w" data-act="lt" data-v="o">Masuk sebagai Orang Tua / Siswa</button></p>
+  </form>
+  <form id="lo" class="card lc" hidden>
+    <div class="logo">K</div><h1>Orang Tua / Siswa</h1><p class="mu">Lihat kehadiran, pelanggaran, dan prestasi ananda</p>
+    <label>NISN ananda<input name="n" required inputmode="numeric" pattern="\d{8,12}" title="8–12 angka" autocomplete="username"></label>
+    <label id="lk"><span id="lkt">Kata sandi (ketik NISN ananda sekali lagi)</span><input name="k" type="password" required inputmode="numeric" autocomplete="current-password"></label>
+    <label id="ld" hidden>4 digit terakhir nomor HP orang tua yang terdaftar<input name="d" inputmode="numeric" pattern="\d{4}" maxlength="4"></label>
+    <p id="oerr" class="er" role="alert"></p>
+    <button class="btn pri w">Lihat Data Ananda</button>
+    <p style="text-align:center;margin:12px 0 0"><button type="button" class="btn w" data-act="lt" data-v="s">Kembali ke login staf</button></p>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <aside class="side">
+    <div class="brand"><div class="logo">K</div><div><b id="an">APLIKASI KESISWAAN</b><small>MADRASAH ADMIN</small></div></div>
+    <nav id="nav" aria-label="Menu utama"></nav>
+    <div class="role"><small>Peran Aktif</small><b id="role"></b></div>
+    <button class="nl" data-act="out"><svg class="i"><use href="#i-out"/></svg>Keluar</button>
+  </aside>
+  <div class="scrim" data-act="menu"></div>
+
+  <div class="main">
+    <header class="top">
+      <button class="ib mob" data-act="menu" aria-label="Buka menu"><svg class="i"><use href="#i-menu"/></svg></button>
+      <h2 id="pt">Dashboard</h2>
+      <span id="sync" class="pill ok" role="status">Tersinkron</span>
+      <button class="ib" data-act="theme" aria-label="Ganti mode gelap"><svg class="i"><use href="#i-moon"/></svg></button>
+      <div class="usr"><b id="un"></b><small id="ur"></small></div>
+    </header>
+
+    <div class="cnt">
+      <section id="s-dashboard">
+        <div class="hd"><div><h1>Dashboard Kesiswaan</h1><p class="mu">Ringkasan aktivitas kesiswaan dan ekstrakurikuler</p></div>
+          <div class="tabs"><button data-act="per" data-v="day">Hari Ini</button><button data-act="per" data-v="week">Minggu Ini</button><button data-act="per" data-v="month">Bulan Ini</button></div></div>
+        <div id="kpi" class="kpis"></div>
+        <div class="card"><div class="bar"><h3>Aktivitas Terbaru</h3><input type="search" data-q="dq" placeholder="Cari siswa, ekskul, ID..." aria-label="Cari aktivitas"></div>
+          <div class="tw"><table><thead><tr><th>ID</th><th>Nama</th><th>Kelas</th><th>Kejadian</th><th>Waktu</th><th>Status</th></tr></thead><tbody id="act"></tbody></table></div></div>
+      </section>
+
+      <section id="s-ekskul" hidden>
+        <div class="hd"><div><h1>Ekstrakurikuler</h1><p class="mu">Pilih ekskul lalu isi daftar hadir pertemuan</p></div></div>
+        <div id="ekl" class="grid3"></div>
+        <div id="pf"></div>
+        <div id="fm" class="card" hidden></div>
+        <div class="card"><div class="bar"><h3>Riwayat Presensi</h3><button class="btn pri" data-act="unduhrw">Unduh Excel</button></div>
+          <div class="fg" style="margin-bottom:12px"><label>Ekskul<select id="hk"></select></label><label>Dari tanggal<input type="date" id="hd"></label><label>Sampai tanggal<input type="date" id="hs"></label></div>
+          <div class="tw"><table><thead><tr><th>Tanggal</th><th>Ekskul</th><th>Pertemuan</th><th>Kehadiran</th><th>Aksi</th></tr></thead><tbody id="rw"></tbody></table></div><div id="rwp" class="pg"></div></div>
+      </section>
+
+      <section id="s-pelanggaran" hidden>
+        <div class="hd"><div><h1>Pelanggaran &amp; Keterlambatan</h1><p class="mu">Pencatatan tata tertib dan akumulasi poin pembinaan</p></div></div>
+        <div class="two"><div>
+          <form id="ft" class="card fg4"><h3>Catat Siswa Terlambat</h3>
+            <label>Siswa<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+            <label>Jam datang<input name="j" type="time" required></label>
+            <label>Alasan<select name="a"><option>Kesiangan</option><option>Kendaraan</option><option>Lainnya</option></select></label>
+            <button class="btn pri">Simpan</button></form>
+          <form id="fp" class="card fg4"><h3>Catat Pelanggaran</h3>
+            <label>Siswa<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+            <label>Jenis<select name="k" id="jn" required></select></label>
+            <label>Tanggal<input name="t" type="date" required></label>
+            <label>Jam<input name="j" type="time" required></label>
+            <label>Catatan<input name="c" maxlength="150"></label>
+            <button class="btn pri">Simpan</button></form>
+          <datalist id="dl"></datalist>
+          <div class="card"><div class="bar"><div class="tabs"><button data-act="tab" data-v="pel">Pelanggaran</button><button data-act="tab" data-v="ter">Keterlambatan</button></div>
+            <input type="search" data-q="q" placeholder="Cari nama, NISN, jenis..." aria-label="Cari catatan"></div>
+            <div id="hbar" class="bar" hidden style="margin-bottom:8px"></div>
+            <div class="tw"><table><thead id="ph"></thead><tbody id="pb"></tbody></table></div><div id="pgr" class="pg"></div></div>
+        </div><aside class="card t5" id="top5"></aside></div>
+      </section>
+
+      <section id="s-nilai" hidden>
+        <div class="hd"><div><h1>Nilai Ekstrakurikuler</h1><p class="mu">Pilih nilai A, B, C, atau D dari daftar untuk setiap anggota, atau impor dari Excel</p></div><div class="bar"><button class="btn" data-act="nimp">Impor Excel</button><input id="nfile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden><button class="btn" data-act="nxl">Unduh Excel</button></div></div>
+        <div class="card"><div class="fg"><label>Ekskul<select id="nk"></select></label><label>Periode<select id="np2"></select></label><label id="nkl" hidden>Kelas<select id="nkls"></select></label></div>
+          <div id="nsum" class="sum"></div>
+          <div class="tw"><table><thead><tr><th>No</th><th>Siswa</th><th>Kelas</th><th>Nilai</th><th>Catatan</th></tr></thead><tbody id="nb"></tbody></table></div>
+          <div id="nimp" class="mu" style="margin-top:12px"></div>
+          <div class="bar" style="margin-top:12px"><b id="nmod"></b><div><button class="btn" data-act="nbatal">Batalkan perubahan</button> <button class="btn pri" data-act="nsimpan">Simpan Nilai</button></div></div></div>
+      </section>
+
+      <section id="s-tahfidz" hidden>
+        <div class="hd"><div><h1>Tahfidz</h1><p class="mu">Ekskul wajib seluruh siswa: catat kehadiran dan perkembangan hafalan setiap pertemuan, lengkap dengan rekap</p></div><button class="btn" data-act="thnilai">Nilai Semester</button></div>
+        <div class="tabs" style="margin-bottom:16px;width:fit-content"><button data-act="thtab" data-v="in" class="on">Input Pertemuan</button><button data-act="thtab" data-v="rk">Rekap</button></div>
+        <div id="th-in"><div class="card"><div class="fg"><label>Kelas<select id="thk"></select></label><label>Tanggal pertemuan<input type="date" id="thd"></label></div></div><div id="thf"></div></div>
+        <div id="th-rk" hidden><form id="fth" class="card fg4"><h3>Rekap Tahfidz</h3><label>Kelas<select name="k" id="thk2"></select></label><label>Dari tanggal<input name="d" type="date" required></label><label>Sampai tanggal<input name="s" type="date" required></label><button class="btn pri">Tampilkan</button></form><div id="thr"></div></div>
+      </section>
+
+      <section id="s-jenis" hidden>
+        <div class="hd"><div><h1>Jenis Pelanggaran</h1><p class="mu">Kelola daftar pelanggaran dan poinnya. Jenis yang dinonaktifkan tidak muncul di form pencatatan, tetapi riwayatnya tetap tersimpan.</p></div><div class="bar"><button class="btn" data-act="jtpl">Templat Excel</button><button class="btn" data-act="jimp">Impor Excel</button><input id="jfile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden><button class="btn pri" data-act="jbaru">Tambah Jenis</button></div></div>
+        <div id="jimpbox"></div>
+        <form id="fj" class="card fg4" hidden><h3 id="fjt">Tambah Jenis Pelanggaran</h3><input type="hidden" name="id">
+          <label>Nama pelanggaran<input name="n" required maxlength="80" placeholder="mis. Tidak mengikuti upacara"></label>
+          <label>Kategori<select name="k" required><option value="">— pilih kategori —</option><option>Ringan</option><option>Sedang</option><option>Berat</option></select></label>
+          <label>Poin (0–100)<input name="p" type="number" min="0" max="100" step="1" required inputmode="numeric"></label>
+          <p id="jw" class="mu" style="grid-column:1/-1;margin:0" hidden>Perubahan poin hanya berlaku untuk pelanggaran yang dicatat setelah ini. Catatan lama tetap memakai poin lamanya.</p>
+          <div class="bar"><button class="btn pri">Simpan</button><button type="button" class="btn" data-act="jbatal">Batal</button></div></form>
+        <div class="card"><div class="tw"><table><thead><tr><th>Pelanggaran</th><th>Kategori</th><th>Poin</th><th>Dipakai</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="jb"></tbody></table></div></div>
+      </section>
+
+      <section id="s-prestasi" hidden>
+        <div class="hd"><div><h1>Prestasi Siswa</h1><p class="mu">Arsip prestasi beserta sertifikatnya</p></div></div>
+        <p id="prh" class="mu" hidden>Anda dapat melihat dan mencatat prestasi siswa anggota ekskul Anda. Siswa yang belum menjadi anggota perlu ditambahkan dulu lewat Ekstrakurikuler → Kelola Anggota.</p>
+        <form id="fr" class="card fg4"><h3>Catat Prestasi</h3>
+          <label>Siswa<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+          <label>Jenis prestasi<input name="k" required maxlength="100" placeholder="mis. Juara 1 MTQ"></label>
+          <label>Tingkat<select name="l"><option>Sekolah</option><option>Kecamatan</option><option>Kota</option><option>Provinsi</option><option>Nasional</option><option>Internasional</option></select></label>
+          <label>Tanggal pelaksanaan<input name="t" type="date" required></label>
+          <label>Penyelenggara<input name="p" maxlength="100"></label>
+          <label>Sertifikat (JPG/PNG/PDF, maks 5 MB)<input name="f" type="file" accept="image/jpeg,image/png,application/pdf"></label>
+          <button class="btn pri">Simpan</button></form>
+        <div id="prbn" class="mu" hidden style="margin-bottom:12px"></div>
+        <div id="prrk" class="card fg4" hidden><h3>Rekap Prestasi (unduh Excel)</h3>
+          <label>Dari tanggal<input type="date" id="prd"></label><label>Sampai tanggal<input type="date" id="prs2"></label>
+          <label>Status<select id="prst"><option value="terverifikasi">Terverifikasi</option><option value="menunggu">Menunggu verifikasi</option><option value="ditolak">Ditolak</option><option value="">Semua status</option></select></label>
+          <label>Kelas<select id="prk"></select></label><button class="btn pri" data-act="prxl">Unduh Rekap Excel</button></div>
+        <div class="card"><div class="bar"><h3>Daftar Prestasi</h3><select id="prf" hidden aria-label="Filter status" style="max-width:210px"><option value="">Semua status</option><option value="menunggu">Menunggu verifikasi</option><option value="terverifikasi">Terverifikasi</option><option value="ditolak">Ditolak</option></select><input type="search" data-q="qp" placeholder="Cari siswa, prestasi, penyelenggara..." aria-label="Cari prestasi"></div>
+          <div id="pbar" class="bar" hidden style="margin-bottom:8px"></div>
+          <div class="tw"><table><thead id="prth"></thead><tbody id="prb"></tbody></table></div><div id="prp" class="pg"></div></div>
+      </section>
+
+      <section id="s-pendaftaran" hidden>
+        <div class="hd"><div><h1>Pendaftaran Siswa Baru</h1><p class="mu">Catat pendaftar, unggah dokumen, dan atur status penerimaan</p></div></div>
+        <form id="fd" class="card fg4"><h3>Catat Pendaftar</h3>
+          <label>Nama calon siswa<input name="n" required maxlength="100"></label>
+          <label>Tanggal lahir<input name="l" type="date" required></label>
+          <label>Asal sekolah<input name="a" maxlength="100"></label>
+          <label>Kontak orang tua<input name="k" maxlength="30" inputmode="tel"></label>
+          <label>Email orang tua<input name="e" type="email" maxlength="100"></label>
+          <label>Foto (JPG/PNG)<input name="foto" type="file" accept="image/jpeg,image/png"></label>
+          <label>Akta kelahiran<input name="akta" type="file" accept="image/jpeg,image/png,application/pdf"></label>
+          <label>Kartu keluarga<input name="kk" type="file" accept="image/jpeg,image/png,application/pdf"></label>
+          <label>Surat keterangan<input name="surat" type="file" accept="image/jpeg,image/png,application/pdf"></label>
+          <button class="btn pri">Simpan Pendaftar</button></form>
+        <div class="card"><div class="bar"><h3>Daftar Pendaftar</h3><input type="search" data-q="qd" placeholder="Cari nama atau nomor..." aria-label="Cari pendaftar"></div>
+          <div class="tw"><table><thead><tr><th>No. Pendaftaran</th><th>Nama</th><th>Kontak</th><th>Berkas</th><th>Status</th></tr></thead><tbody id="pdb"></tbody></table></div><div id="pdp" class="pg"></div></div>
+      </section>
+
+      <section id="s-siswa" hidden>
+        <div class="hd"><div><h1>Data Siswa</h1><p class="mu">Kelola data siswa; impor massal dari CSV. Mengubah data langsung di Google Sheets? Klik Segarkan.</p></div>
+          <div class="bar"><button class="btn" data-act="segar">Segarkan</button><button class="btn" data-act="impor">Impor CSV</button><input id="csv" type="file" accept=".csv,text/csv" hidden><button class="btn pri" data-act="sbaru">Tambah Siswa</button></div></div>
+        <form id="fs" class="card fg4" hidden><h3 id="fst">Tambah Siswa</h3><input type="hidden" name="id">
+          <label>Nama<input name="n" required maxlength="100"></label>
+          <label>NISN (8–12 angka)<input name="b" required inputmode="numeric" pattern="\d{8,12}" title="8–12 angka"></label>
+          <label>Kelas<input name="k" maxlength="20"></label><label>NIS madrasah<input name="m" maxlength="20"></label>
+          <label>Nama orang tua<input name="o" maxlength="100"></label><label>Kontak orang tua<input name="t" maxlength="30" inputmode="tel"></label>
+          <label>Email orang tua<input name="e" type="email" maxlength="100"></label>
+          <div class="bar"><button class="btn pri">Simpan</button><button type="button" class="btn" data-act="sbatal">Batal</button></div></form>
+        <div class="card"><div class="bar"><h3>Daftar Siswa</h3><input type="search" data-q="qs" placeholder="Cari nama, NISN, kelas..." aria-label="Cari siswa"></div>
+          <div class="tw"><table><thead><tr><th>NISN</th><th>Nama</th><th>Kelas</th><th>Orang tua</th><th>Aksi</th></tr></thead><tbody id="sb"></tbody></table></div><div id="sp" class="pg"></div></div>
+        <p class="mu">Format CSV: baris pertama berisi judul kolom <b>nama, nisn, kelas, nis, nama_orang_tua, kontak_orang_tua, email_orang_tua</b> (hanya nama dan nisn wajib). Format kolom NISN sebagai Teks di Excel agar angka 0 di depan tidak hilang. Pemisah koma atau titik koma sama-sama dikenali.</p>
+      </section>
+
+      <section id="s-keleks" hidden>
+        <div class="hd"><div><h1>Kelola Ekskul</h1><p class="mu">Tambah atau ubah ekstrakurikuler dan atur anggotanya</p></div><button class="btn pri" data-act="kbaru">Tambah Ekskul</button></div>
+        <form id="fe" class="card fg4" hidden><h3 id="fet">Tambah Ekskul</h3><input type="hidden" name="id">
+          <label>Nama ekskul<input name="n" required maxlength="60"></label>
+          <label>Jam kegiatan<input name="j" type="time" required></label><label>Lokasi<input name="l" maxlength="60"></label>
+          <fieldset class="days"><legend>Hari kegiatan (boleh lebih dari satu)</legend><label class="chk"><input type="checkbox" name="h" value="Senin">Senin</label><label class="chk"><input type="checkbox" name="h" value="Selasa">Selasa</label><label class="chk"><input type="checkbox" name="h" value="Rabu">Rabu</label><label class="chk"><input type="checkbox" name="h" value="Kamis">Kamis</label><label class="chk"><input type="checkbox" name="h" value="Jumat">Jumat</label><label class="chk"><input type="checkbox" name="h" value="Sabtu">Sabtu</label><label class="chk"><input type="checkbox" name="h" value="Minggu">Minggu</label></fieldset>
+          <div class="bar"><button class="btn pri">Simpan</button><button type="button" class="btn" data-act="kbatal">Batal</button></div></form>
+        <div class="card"><div class="tw"><table><thead><tr><th>Ekskul</th><th>Jadwal</th><th>Anggota</th><th>Aksi</th></tr></thead><tbody id="kb"></tbody></table></div></div>
+        <div id="fa" class="card" hidden></div>
+      </section>
+
+      <section id="s-pembina" hidden>
+        <div class="hd"><div><h1>Pembina &amp; Pelatih</h1><p class="mu">Kelola akun, ekskul yang diampu, dan reset kata sandi</p></div><div class="bar"><button class="btn" data-act="utpl">Unduh Templat</button><button class="btn" data-act="uimp">Impor Excel</button><input id="ufile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden><button class="btn pri" data-act="ubaru">Tambah Akun</button></div></div>
+        <div id="uimpbox"></div>
+        <p id="ubn" class="mu" hidden style="margin:0 0 12px"></p>
+        <form id="fu" class="card fg4" hidden><h3 id="fut">Tambah Akun</h3><input type="hidden" name="id">
+          <label>Nama lengkap<input name="n" required maxlength="100"></label>
+          <label>Nama pengguna<input name="u" required maxlength="30" pattern="[a-z0-9._\-]{3,30}" title="3–30 huruf kecil, angka, titik, strip" autocapitalize="none"></label>
+          <label>Peran<select name="r"><option value="pelatih">Pelatih</option><option value="pembina">Pembina</option><option value="disiplin">Penegak Disiplin</option><option value="tahfidz">Guru Tahfidz</option><option value="kesiswaan">Kesiswaan (admin)</option><option value="">— belum ada peran —</option></select></label>
+          <label>Ekskul diampu<select name="k" id="uk"></select></label>
+          <label>Kata sandi <span id="pwh">(minimal 8 karakter)</span><input name="p" type="password" autocomplete="new-password" minlength="8"></label>
+          <div class="bar"><button class="btn pri">Simpan</button><button type="button" class="btn" data-act="ubatal">Batal</button></div></form>
+        <div class="card"><div class="tw"><table><thead><tr><th>Nama</th><th>Nama pengguna</th><th>Peran</th><th>Ekskul</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="ub"></tbody></table></div></div>
+      </section>
+
+      <section id="s-laporan" hidden>
+        <div class="hd no-print"><div><h1>Laporan &amp; Ekspor</h1><p class="mu">Pilih jenis dan periode, lalu ekspor Excel atau cetak PDF</p></div></div>
+        <form id="fl" class="card fg4 no-print"><h3>Konfigurasi Laporan</h3>
+          <label>Jenis laporan<select name="j" id="lj"><option value="hadir">Rekap kehadiran ekskul</option><option value="pelanggaran">Pelanggaran per siswa</option><option value="prestasi">Daftar prestasi</option><option value="pendaftaran">Rekap pendaftaran siswa baru</option></select></label>
+          <label>Dari tanggal<input name="d" type="date" required></label><label>Sampai tanggal<input name="s" type="date" required></label>
+          <label>Ekskul (untuk kehadiran)<select name="e" id="le"></select></label>
+          <button class="btn pri">Tampilkan</button></form>
+        <div id="lp" class="card" hidden></div>
+      </section>
+
+      <section id="s-pengaturan" hidden>
+        <div class="hd"><div><h1>Pengaturan Sistem</h1><p class="mu">Identitas dan warna aplikasi; warna berubah langsung sebagai pratinjau</p></div></div>
+        <form id="fg" class="card fg4"><h3>Identitas Aplikasi</h3>
+          <label>Nama aplikasi<input name="n" required maxlength="60"></label><label>Teks footer / tagline<input name="f" maxlength="100"></label>
+          <label>Warna utama<input name="a" type="color"></label><label>Warna sidebar<input name="s" type="color"></label>
+          <label>Cara login orang tua<select name="om"><option value="nisn">NISN dan kata sandi yang sama dengan NISN</option><option value="kode">NISN + kode akses + 4 digit HP (lebih aman)</option></select></label>
+          <label>Kode akses orang tua (hanya untuk mode kode akses, min. 6 karakter)<input name="kd" type="password" minlength="6" autocomplete="new-password"></label>
+          <label class="chk"><input type="checkbox" name="ne">Kirim email otomatis (pelanggaran &amp; keterlambatan)</label>
+          <label class="chk"><input type="checkbox" name="np">Kirim email untuk prestasi</label>
+          <label>Logo (PNG/JPG)<input name="l" type="file" accept="image/png,image/jpeg"></label>
+          <div class="bar"><img id="lg-pv" alt="Logo saat ini" width="48" height="48" hidden><button class="btn pri">Simpan Pengaturan</button><button type="button" class="btn" data-act="gdef">Kembalikan ke Bawaan</button></div></form>
+      </section>
+      <section id="s-anak" hidden><div class="hd"><div><h1 id="an-n">Data Ananda</h1><p class="mu" id="an-s"></p></div></div><div id="an-b"></div></section>
+      <footer id="fx" class="mu no-print" style="text-align:center;padding:16px"></footer>
+    </div>
+  </div>
+</div>
+<dialog id="vm" aria-label="Pratinjau berkas"><div class="vh"><b>Pratinjau Berkas</b><div><a id="vd" class="btn" href="#">Unduh</a> <button class="btn" data-act="vclose">Tutup</button></div></div><div id="vb"></div></dialog>
+<dialog id="dm" aria-label="Konfirmasi hapus"><div class="vh"><b id="dt">Hapus siswa</b></div><div id="db" style="padding:16px"></div><div class="vh" style="border-top:1px solid var(--bd);border-bottom:0;justify-content:flex-end"><button class="btn" data-act="dbatal">Batal</button> <button class="btn pri dng2" id="dok" data-act="dok">Hapus Permanen</button></div></dialog>
+<dialog id="tm" aria-label="Riwayat Tahfidz"><div class="vh"><b id="tmt">Riwayat</b><button class="btn" data-act="tmclose">Tutup</button></div><div id="tmb" style="padding:16px"></div></dialog>
+<div id="toasts" aria-live="polite"></div>
+<script src="config.js"></script>
+<script src="app.js" defer></script>
+</body>
+</html>
