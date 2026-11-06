@@ -427,6 +427,7 @@ function renderUsr(){
     <td><span class="pill ${u.a?'ok':'er'}">${u.a?'Aktif':'Nonaktif'}</span>${u.r?'':' <span class="pill wn">Belum ada peran</span>'}</td>
     <td><button class="btn sm" data-act="uedit" data-id="${id}">Reset sandi</button> ${me?'':`<button class="btn sm" data-act="utog" data-id="${id}">${u.a?'Nonaktifkan':'Aktifkan'}</button>`}${me||!['pembina','pelatih',''].includes(u.r)?'':` <button class="btn sm dng" data-act="udel" data-id="${id}">Hapus</button>`}</td></tr>`}).join('');
   const n=d.users.filter(x=>!x.r).length,bn=$('#ubn');bn.hidden=!n;bn.innerHTML=n?`<span class="pill wn">${n} akun belum diberi peran</span> Akun ini belum bisa masuk. Pilih peran (dan ekskul untuk pembina/pelatih) di tabel di bawah.`:'';
+  const aku=(d.users||[]).find(x=>x.id===d.user.id);if(aku&&aku.nm&&aku.nm!==d.user.nama){d.user.nama=aku.nm;$('#un').textContent=aku.nm} // nama di pojok kanan atas ikut berubah
 }
 /* Edit langsung di tabel: tampil seketika, disimpan lewat antrean latar (berurutan, tanpa memuat ulang tabel agar kursor tidak lompat) */
 function editUsr(t){
@@ -441,6 +442,7 @@ function editUsr(t){
   if(f==='ek'&&!v){toast('Ekskul wajib dipilih untuk pembina/pelatih','err');return renderUsr()}
   if(u[f]===v)return;
   u[f]=v;
+  if(f==='nm'&&u.id===S.d.user.id){S.d.user.nama=v;$('#un').textContent=v} // akun sendiri: nama di pojok kanan atas ikut berubah seketika
   if(f==='r'){if(noEk(v))u.ek='';renderUsr()}
   if(u.r&&!noEk(u.r)&&!u.ek){toast('Pilih ekskul yang diampu agar perubahan peran tersimpan','err');return}
   toast('Perubahan disimpan');queue('saveUser',{id:u.id,u:u.u,nm:u.nm,r:u.r,ek:u.ek,a:u.a});
