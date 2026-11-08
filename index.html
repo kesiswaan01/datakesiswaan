@@ -58,6 +58,7 @@
     <div class="brand"><div class="logo">K</div><div><b id="an">APLIKASI KESISWAAN</b><small>MADRASAH ADMIN</small></div></div>
     <nav id="nav" aria-label="Menu utama"></nav>
     <div class="role"><small>Peran Aktif</small><b id="role"></b></div>
+    <button class="nl" data-act="gubah" id="bgubah"><svg class="i"><use href="#i-gear"/></svg>Ubah kata sandi</button>
     <button class="nl" data-act="out"><svg class="i"><use href="#i-out"/></svg>Keluar</button>
   </aside>
   <div class="scrim" data-act="menu"></div>
@@ -105,6 +106,12 @@
             <label>Jam<input name="j" type="time" required></label>
             <label>Catatan<input name="c" maxlength="150"></label>
             <button class="btn pri">Simpan</button></form>
+          <form id="fls" class="card fg4"><h3>Laporan per Siswa</h3>
+            <label>Siswa<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+            <label>Dari tanggal (opsional)<input name="d" type="date"></label>
+            <label>Sampai tanggal (opsional)<input name="e" type="date"></label>
+            <button class="btn pri">Buat Laporan</button>
+            <p class="mu" style="grid-column:1/-1;margin:0">Berisi seluruh pelanggaran dan keterlambatan satu siswa, siap dicetak (A4) atau diunduh sebagai Excel. Kosongkan tanggal untuk semua catatan.</p></form>
           <datalist id="dl"></datalist>
           <div class="card"><div class="bar"><div class="tabs"><button data-act="tab" data-v="pel">Pelanggaran</button><button data-act="tab" data-v="ter">Keterlambatan</button></div>
             <input type="search" data-q="q" placeholder="Cari nama, NISN, jenis..." aria-label="Cari catatan"></div>
@@ -117,7 +124,7 @@
         <div class="hd"><div><h1>Nilai Ekstrakurikuler</h1><p class="mu">Pilih nilai A, B, C, atau D dari daftar untuk setiap anggota, atau impor dari Excel</p></div><div class="bar"><button class="btn" data-act="nimp">Impor Excel</button><input id="nfile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden><button class="btn" data-act="nxl">Unduh Excel</button></div></div>
         <div class="card"><div class="fg"><label>Ekskul<select id="nk"></select></label><label>Periode<select id="np2"></select></label><label id="nkl" hidden>Kelas<select id="nkls"></select></label></div>
           <div id="nsum" class="sum"></div>
-          <div class="tw"><table><thead><tr><th>No</th><th>Siswa</th><th>Kelas</th><th>Nilai</th><th>Catatan</th></tr></thead><tbody id="nb"></tbody></table></div>
+          <div class="tw"><table><thead><tr><th>No</th><th>Siswa</th><th>Kelas</th><th>Nilai</th><th>Catatan</th></tr></thead><tbody id="nb"></tbody></table></div><div id="nbp" class="pg"></div>
           <div id="nimp" class="mu" style="margin-top:12px"></div>
           <div class="bar" style="margin-top:12px"><b id="nmod"></b><div><button class="btn" data-act="nbatal">Batalkan perubahan</button> <button class="btn pri" data-act="nsimpan">Simpan Nilai</button></div></div></div>
       </section>
@@ -207,6 +214,12 @@
 
       <section id="s-pembina" hidden>
         <div class="hd"><div><h1>Pembina &amp; Pelatih</h1><p class="mu">Kelola akun, ekskul yang diampu, dan reset kata sandi</p></div><div class="bar"><button class="btn" data-act="utpl">Unduh Templat</button><button class="btn" data-act="uimp">Impor Excel</button><input id="ufile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden><button class="btn pri" data-act="ubaru">Tambah Akun</button></div></div>
+        <div id="sabox" class="card" hidden><div class="ph"><h3>Kata sandi awal</h3></div>
+          <p id="sawarn" class="er" role="alert" hidden style="margin:0 0 8px"><b>Kata sandi awal belum diatur.</b> Isi kolom di bawah lalu klik <b>Simpan kata sandi awal</b> sebelum mengimpor akun atau mengatur ulang sandi.</p>
+          <p class="mu">Dipakai untuk akun hasil impor Excel dan tombol <b>Sandi awal</b> di tabel. Pengguna wajib menggantinya saat pertama masuk. Mengubahnya tidak memengaruhi akun yang sudah ada.</p>
+          <div class="fg4"><label>Kata sandi awal saat ini<input id="sacur" readonly value="••••••••" data-on="0"></label>
+            <label>Kata sandi awal baru (8–64 karakter)<input id="sanew" maxlength="64" autocomplete="off" placeholder="mis. kombinasi huruf dan angka"></label></div>
+          <div class="bar" style="margin-top:12px;flex-wrap:wrap"><button class="btn" id="satamp" data-act="satamp">Tampilkan</button><button class="btn pri" data-act="sasimpan">Simpan kata sandi awal</button><button class="btn dng" data-act="saresetsemua">Atur ulang semua pelatih &amp; pembina ke sandi awal</button></div></div>
         <div id="uimpbox"></div>
         <p id="ubn" class="mu" hidden style="margin:0 0 12px"></p>
         <form id="fu" class="card fg4" hidden><h3 id="fut">Tambah Akun</h3><input type="hidden" name="id">
@@ -215,6 +228,7 @@
           <label>Peran<select name="r"><option value="pelatih">Pelatih</option><option value="pembina">Pembina</option><option value="disiplin">Penegak Disiplin</option><option value="tahfidz">Guru Tahfidz</option><option value="kesiswaan">Kesiswaan (admin)</option><option value="">— belum ada peran —</option></select></label>
           <label>Ekskul diampu<select name="k" id="uk"></select></label>
           <label>Kata sandi <span id="pwh">(minimal 8 karakter)</span><input name="p" type="password" autocomplete="new-password" minlength="8"></label>
+          <label class="chk" style="height:auto"><input type="checkbox" name="w" checked>Wajib diganti saat pertama masuk (bila kata sandi diisi)</label>
           <div class="bar"><button class="btn pri">Simpan</button><button type="button" class="btn" data-act="ubatal">Batal</button></div></form>
         <div class="card"><div class="tw"><table><thead><tr><th>Nama</th><th>Nama pengguna</th><th>Peran</th><th>Ekskul</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="ub"></tbody></table></div></div>
       </section>
@@ -248,7 +262,16 @@
 </div>
 <dialog id="vm" aria-label="Pratinjau berkas"><div class="vh"><b>Pratinjau Berkas</b><div><a id="vd" class="btn" href="#">Unduh</a> <button class="btn" data-act="vclose">Tutup</button></div></div><div id="vb"></div></dialog>
 <dialog id="dm" aria-label="Konfirmasi hapus"><div class="vh"><b id="dt">Hapus siswa</b></div><div id="db" style="padding:16px"></div><div class="vh" style="border-top:1px solid var(--bd);border-bottom:0;justify-content:flex-end"><button class="btn" data-act="dbatal">Batal</button> <button class="btn pri dng2" id="dok" data-act="dok">Hapus Permanen</button></div></dialog>
+<dialog id="gm" aria-label="Ubah kata sandi"><form id="fgs" style="display:grid;gap:12px;padding:18px;min-width:min(420px,88vw)">
+  <b id="gmt" style="font-size:17px">Ubah kata sandi</b><p class="mu" id="gmp" style="margin:0"></p>
+  <label>Kata sandi saat ini<input name="a" type="password" autocomplete="current-password" required></label>
+  <label>Kata sandi baru (minimal 8 karakter)<input name="b" type="password" autocomplete="new-password" minlength="8" maxlength="64" required></label>
+  <label>Ulangi kata sandi baru<input name="c" type="password" autocomplete="new-password" minlength="8" maxlength="64" required></label>
+  <p id="gerr" class="er" role="alert" style="margin:0"></p>
+  <div class="bar"><button class="btn pri">Simpan kata sandi</button><button type="button" class="btn" id="gbatal" data-act="gtutup">Batal</button><button type="button" class="btn" id="gkeluar" data-act="gkeluar" hidden>Keluar</button></div></form></dialog>
 <dialog id="tm" aria-label="Riwayat Tahfidz"><div class="vh"><b id="tmt">Riwayat</b><button class="btn" data-act="tmclose">Tutup</button></div><div id="tmb" style="padding:16px"></div></dialog>
+<dialog id="lm" aria-label="Laporan siswa" style="width:min(920px,96vw);max-width:96vw"><div class="vh no-print"><b>Laporan Siswa</b><div class="bar"><button class="btn pri" id="lmcetak" data-act="lapcetak">Cetak / Simpan PDF</button><button class="btn" data-act="lapxl">Unduh Excel</button><button class="btn" data-act="laptutup">Tutup</button></div></div><div id="lmb" class="lap" style="padding:16px;max-height:76vh;overflow:auto"></div></dialog>
+<div id="cetak" class="lap" aria-hidden="true"></div>
 <div id="toasts" aria-live="polite"></div>
 <script src="config.js"></script>
 <script src="app.js" defer></script>

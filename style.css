@@ -72,3 +72,28 @@ td select[data-jk]{min-width:130px;height:36px;font-weight:600}select.kR{backgro
 .top h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:480px){.top{gap:8px;padding:0 8px}.top h2{font-size:15px}#sync{font-size:10px;padding:0 8px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Respons instan: tanpa jeda ketuk ganda, umpan balik visual seketika saat disentuh */
+button,a,select,input,label,summary,[data-act]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.nl:active,.ib:active{filter:brightness(.92)}.btn:active,.pg button:active{transform:scale(.97)}
+
+#fgs label,#sabox label{display:grid;gap:4px}#sacur{letter-spacing:.08em;font-family:var(--mono,monospace)}
+
+/* ── Laporan per siswa (pratinjau layar + cetak A4) ── */
+#cetak{display:none}
+.lap{font-size:13px;line-height:1.45}.lap h2{font-size:16px;margin:0}.lap h3{font-size:14px;margin:14px 0 4px}.lap p{margin:6px 0}
+.lap table{width:100%;border-collapse:collapse;margin:6px 0 10px}.lap th,.lap td{border:1px solid var(--bd);padding:5px 8px;text-align:left;vertical-align:top}.lap th{background:var(--th)}
+.lap .kop{display:flex;gap:12px;align-items:center;border-bottom:2px solid currentColor;padding-bottom:8px;margin-bottom:10px}.lap .kop img{width:54px;height:54px;object-fit:contain}
+.lap table.idt td{border:0;padding:2px 10px 2px 0}.lap .ringk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0}.lap .ringk div{border:1px solid var(--bd);border-radius:6px;padding:8px}.lap .ringk b{display:block;font-size:20px}
+.lap .ttd{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px;text-align:center}
+@media (max-width:640px){.lap .ringk{grid-template-columns:repeat(2,minmax(0,1fr))}.lap table{display:block;overflow-x:auto}}
+@media print{
+  @page{size:A4 portrait;margin:14mm}
+  body.cetak-siswa{--tx:#000;--bd:#888;--th:#eee;--bg:#fff;background:#fff;color:#000}
+  body.cetak-siswa,body.cetak-siswa *{transition:none!important;animation:none!important}
+  body.cetak-siswa #app,body.cetak-siswa #login,body.cetak-siswa #toasts{display:none!important}
+  body.cetak-siswa #cetak{display:block!important;font-size:11pt;color:#000}
+  body.cetak-siswa .lap th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.cetak-siswa .lap tr{break-inside:avoid}body.cetak-siswa .lap thead{display:table-header-group}body.cetak-siswa .lap .ttd{break-inside:avoid}body.cetak-siswa .lap h3{break-after:avoid}
+  body.cetak-siswa .lap table{display:table;overflow:visible}body.cetak-siswa .lap .ringk{grid-template-columns:repeat(4,1fr)}
+}
