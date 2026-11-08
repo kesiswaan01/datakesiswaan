@@ -158,10 +158,15 @@ function renderDash(){
     .sort((p,q)=>p.w<q.w?1:-1).filter(x=>!S.dq||(x.n+x.e+x.id).toLowerCase().includes(S.dq)).slice(0,8);
   $('#act').innerHTML=L.map(x=>`<tr><td><span class="idl">${x.id}</span></td><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td>${esc(x.e)}</td><td>${esc(x.w)}</td><td><span class="pill ${x.p[0]}">${esc(x.p[1])}</span></td></tr>`).join('')||'<tr><td colspan="6" class="mu">Belum ada data.</td></tr>';
 }
+const pertemuanHariIni=id=>S.d.pertemuan.find(x=>x.e===id&&x.tgl===iso(new Date()));
+function hariIni(e){ // status kegiatan harian hari ini: sudah/belum diisi
+  const x=pertemuanHariIni(e.id);
+  return x?`<div class="ekm">Hari ini: <span class="pill ok">sudah diisi</span> <small>${x.c.H} hadir dari ${tot(x.c)} petugas</small></div>`:'<div class="ekm">Hari ini: <span class="pill wn">belum diisi</span></div>';
+}
 function renderEks(){
   const d=S.d;
   $('#ekl').innerHTML=d.ekskul.map(e=>{const m=d.anggota.filter(a=>a.e===e.id).length,pt=d.pertemuan.filter(x=>x.e===e.id);let n=0,h=0;pt.forEach(x=>{n+=tot(x.c);h+=x.c.H});
-    return `<div class="card ek"><h3>${esc(e.nama_ekskul)}</h3><small>${esc(hariTxt(e))}, ${esc(e.jam)} · ${esc(e.lokasi)}</small><div class="ekm"><b>${m}</b> siswa <span class="pill ok">${n?Math.round(h*100/n):0}% hadir</span></div><button class="btn pri w" data-act="pres" data-id="${esc(e.id)}">Isi Kehadiran</button>${d.user.peran!=='kesiswaan'?`<button class="btn w" style="margin-top:8px" data-act="mem" data-id="${esc(e.id)}">Kelola Anggota</button>`:''}</div>`}).join('')||'<p class="mu">Belum ada ekskul untuk akun ini.</p>';
+    return `<div class="card ek"><h3>${esc(e.nama_ekskul)}</h3><small>${esc(hariTxt(e))}, ${esc(e.jam)} · ${esc(e.lokasi)}</small><div class="ekm"><b>${m}</b> ${e.mode==='petugas'?'petugas':'siswa'} <span class="pill ok">${n?Math.round(h*100/n):0}% hadir</span></div>${e.mode==='petugas'?hariIni(e):''}<button class="btn pri w" data-act="pres" data-id="${esc(e.id)}">${e.mode==='petugas'?(pertemuanHariIni(e.id)?'Perbaiki Kehadiran Hari Ini':'Isi Kehadiran Hari Ini'):'Isi Kehadiran'}</button>${d.user.peran!=='kesiswaan'?`<button class="btn w" style="margin-top:8px" data-act="mem" data-id="${esc(e.id)}">Kelola Anggota</button>`:''}</div>`}).join('')||'<p class="mu">Belum ada ekskul untuk akun ini.</p>';
   renderRiwayat();
 }
 function sum(){const c={hadir:0,izin:0,sakit:0,alpa:0};Object.values(S.att).forEach(v=>c[v]++);$('#ps').innerHTML=Object.keys(c).map(k=>`<span class="pill ${SC[k]}">${k[0].toUpperCase()+k.slice(1)}: ${c[k]}</span>`).join('')}
@@ -562,6 +567,7 @@ function renderKel(){
   $('#kb').innerHTML=d.ekskul.map(e=>{const n=d.anggota.filter(a=>a.e===e.id).length;
     return`<tr><td><b>${esc(e.nama_ekskul)}</b></td><td>${esc(hariTxt(e))}, ${esc(String(e.jam).slice(0,5))}<small>${esc(e.lokasi)}</small></td><td>${n} siswa</td><td><button class="btn sm" data-act="kang" data-id="${esc(e.id)}">Anggota</button> <button class="btn sm" data-act="kedit" data-id="${esc(e.id)}">Ubah</button> <button class="btn sm" data-act="kdel" data-id="${esc(e.id)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="4" class="mu">Belum ada ekskul.</td></tr>';
 }
+const isPetugas=id=>{const e=S.d.ekskul.find(x=>x.id===id);return !!e&&e.mode==='petugas'}; // kegiatan harian: hanya kehadiran petugas
 const hariTxt=e=>String(e.hari||'').split(',').map(x=>x.trim()).filter(Boolean).join(', ');
 function savEks(f){
   const e=f.elements,id=e.id.value||'EK'+Date.now().toString(36),nama=e.n.value.trim(),hr=$$('input[name=h]:checked',f).map(i=>i.value);
@@ -569,8 +575,8 @@ function savEks(f){
   if(!hr.length)return toast('Pilih minimal satu hari kegiatan','err');
   if(!e.j.value)return toast('Isi jam kegiatan','err');
   if(S.d.ekskul.some(x=>x.nama_ekskul.toLowerCase()===nama.toLowerCase()&&x.id!==id))return toast('Nama ekskul sudah ada','err');
-  const r={id,nama,hari:hr.join(','),jam:e.j.value,lokasi:e.l.value},i=S.d.ekskul.findIndex(x=>x.id===id),prev=i<0?null:S.d.ekskul[i],
-    row={...(prev||{id_pembina:'',id_pelatih:''}),id,nama_ekskul:nama,hari:r.hari,jam:r.jam,lokasi:r.lokasi};
+  const r={id,nama,hari:hr.join(','),jam:e.j.value,lokasi:e.l.value,mode:e.m.value},i=S.d.ekskul.findIndex(x=>x.id===id),prev=i<0?null:S.d.ekskul[i],
+    row={...(prev||{id_pembina:'',id_pelatih:''}),id,nama_ekskul:nama,hari:r.hari,jam:r.jam,lokasi:r.lokasi,mode:r.mode};
   if(i<0)S.d.ekskul.push(row);else S.d.ekskul[i]=row;
   f.hidden=true;fillMore();renderAll();toast('Menyimpan ekskul…');
   send('saveEkskul',r,()=>{ // gagal: kembalikan tampilan dan buka lagi formnya agar tidak perlu mengetik ulang
@@ -660,13 +666,15 @@ function formPres(o){
   const e=S.d.ekskul.find(x=>x.id===o.ekskul);if(!e)return;
   S.ek=o.ekskul;S.ed=o.id||null;S.att={};o.rows.forEach(m=>S.att[m.id]=m.st||'hadir');
   $('#pf').innerHTML=`<div class="card"><div class="ph"><h3>${esc(o.judul)} — ${esc(e.nama_ekskul)}</h3><button class="btn" data-act="closepres">Tutup</button></div>
-  <div class="fg"><label>Tanggal<input type="date" id="pd" value="${esc(o.tgl)}"></label><label>Pertemuan ke<input type="number" id="pk" min="1" value="${esc(o.ke)}"></label><label>Materi / agenda<input id="pm" maxlength="150" value="${esc(o.materi||'')}"></label><label class="chk"><input type="checkbox" id="pp"${o.pelatih?' checked':''}>Pelatih hadir</label></div>
-  <div class="bar" style="margin-top:12px"><b>Daftar Kehadiran (${o.rows.length})</b>${o.id?'':'<button class="btn" data-act="markall">Tandai semua hadir</button>'}</div>
-  <div class="tw"><table><thead><tr><th>No</th><th>Siswa</th><th>Kelas</th><th>Status</th><th>Catatan</th></tr></thead><tbody>${o.rows.map((m,i)=>`<tr data-s="${esc(m.id)}"><td>${i+1}</td><td>${esc(m.nama)}<small>NISN ${esc(m.nisn)}</small></td><td>${esc(m.kelas)}</td><td><div class="seg">${['hadir','izin','sakit','alpa'].map(v=>`<button type="button" data-act="mark" data-v="${v}" class="${v}${(m.st||'hadir')===v?' on':''}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></td><td><input data-n maxlength="100" value="${esc(m.n||'')}" aria-label="Catatan ${esc(m.nama)}"></td></tr>`).join('')}</tbody></table></div>
+  <div class="fg"><label>Tanggal<input type="date" id="pd" value="${esc(o.tgl)}"></label>${e.mode==='petugas'?`<input type="hidden" id="pk" value="${esc(o.ke)}"><input type="hidden" id="pm" value=""><input type="checkbox" id="pp" hidden><p class="mu" style="align-self:end;margin:0">Kegiatan harian: catat kehadiran petugas saja.</p>`:`<label>Pertemuan ke<input type="number" id="pk" min="1" value="${esc(o.ke)}"></label><label>Materi / agenda<input id="pm" maxlength="150" value="${esc(o.materi||'')}"></label><label class="chk"><input type="checkbox" id="pp"${o.pelatih?' checked':''}>Pelatih hadir</label>`}</div>
+  <div class="bar" style="margin-top:12px"><b>${e.mode==='petugas'?'Kehadiran Petugas':'Daftar Kehadiran'} (${o.rows.length})</b>${o.id?'':'<button class="btn" data-act="markall">Tandai semua hadir</button>'}</div>
+  <div class="tw"><table><thead><tr><th>No</th><th>${e.mode==='petugas'?'Petugas':'Siswa'}</th><th>Kelas</th><th>Status</th><th>Catatan</th></tr></thead><tbody>${o.rows.map((m,i)=>`<tr data-s="${esc(m.id)}"><td>${i+1}</td><td>${esc(m.nama)}<small>NISN ${esc(m.nisn)}</small></td><td>${esc(m.kelas)}</td><td><div class="seg">${['hadir','izin','sakit','alpa'].map(v=>`<button type="button" data-act="mark" data-v="${v}" class="${v}${(m.st||'hadir')===v?' on':''}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></td><td><input data-n maxlength="100" value="${esc(m.n||'')}" aria-label="Catatan ${esc(m.nama)}"></td></tr>`).join('')}</tbody></table></div>
   <div id="ps" class="sum"></div><button class="btn pri" data-act="savepres">${o.id?'Simpan Perbaikan':'Simpan Kehadiran'}</button></div>`;
   sum();$('#pf').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function openPres(id){
+  const hi=isPetugas(id)&&pertemuanHariIni(id);
+  if(hi){toast('Kehadiran hari ini sudah diisi. Membuka untuk diperbaiki.');return editPres(hi.id)}
   const d=S.d,ms=d.anggota.filter(a=>a.e===id).map(a=>S.map[a.s]).filter(Boolean);
   formPres({ekskul:id,judul:'Form Presensi',tgl:iso(new Date()),ke:d.pertemuan.filter(x=>x.e===id).length+1,materi:'',pelatih:true,rows:ms.map(m=>({...m,st:'hadir',n:''}))});
 }
@@ -698,7 +706,7 @@ function riwayatFilter(){const k=($('#hk')||{}).value||'',a=($('#hd')||{}).value
 function renderRiwayat(){
   const d=S.d,adm=d.user.peran==='kesiswaan',L=riwayatFilter(),en=id=>(d.ekskul.find(e=>e.id===id)||{}).nama_ekskul||'';
   const pages=Math.max(1,Math.ceil(L.length/10)),c=S.pgx.rw=Math.min(S.pgx.rw,pages);
-  $('#rw').innerHTML=L.slice((c-1)*10,c*10).map(x=>`<tr><td>${esc(x.tgl)}</td><td>${esc(en(x.e))}</td><td>Ke-${esc(x.ke)}${x.materi?`<small>${esc(x.materi)}</small>`:''}</td><td>${x.c.H}/${tot(x.c)} <span class="pill ok">${tot(x.c)?Math.round(x.c.H*100/tot(x.c)):0}%</span></td><td><button class="btn sm" data-act="rwxl" data-id="${esc(x.id)}">Unduh</button> <button class="btn sm" data-act="rwedit" data-id="${esc(x.id)}">Perbaiki</button>${adm?` <button class="btn sm" data-act="rwdel" data-id="${esc(x.id)}">Hapus</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Belum ada riwayat pada filter ini.</td></tr>';
+  $('#rw').innerHTML=L.slice((c-1)*10,c*10).map(x=>`<tr><td>${esc(x.tgl)}</td><td>${esc(en(x.e))}</td><td>${isPetugas(x.e)?'Harian':'Ke-'+esc(x.ke)}${x.materi?`<small>${esc(x.materi)}</small>`:''}</td><td>${x.c.H}/${tot(x.c)} <span class="pill ok">${tot(x.c)?Math.round(x.c.H*100/tot(x.c)):0}%</span></td><td><button class="btn sm" data-act="rwxl" data-id="${esc(x.id)}">Unduh</button> <button class="btn sm" data-act="rwedit" data-id="${esc(x.id)}">Perbaiki</button>${adm?` <button class="btn sm" data-act="rwdel" data-id="${esc(x.id)}">Hapus</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Belum ada riwayat pada filter ini.</td></tr>';
   $('#rwp').innerHTML=pgb('rw',c,pages,L.length);
 }
 async function unduhPertemuan(id,btn){
@@ -710,12 +718,12 @@ async function unduhPertemuan(id,btn){
     else{
       const d=r.data,e=S.d.ekskul.find(x=>x.id===d.ekskul)||{nama_ekskul:'Ekskul'},c={hadir:0,izin:0,sakit:0,alpa:0},cap=v=>v?v[0].toUpperCase()+v.slice(1):'';
       d.baris.forEach(b=>{if(c[b.st]!==undefined)c[b.st]++});
-      const ws=XLSX.utils.aoa_to_sheet([['Daftar Hadir Ekstrakurikuler'],['Ekskul',e.nama_ekskul],['Tanggal',d.tgl],['Pertemuan ke',d.ke],['Materi',d.materi||'-'],['Pelatih',d.pelatih?'Hadir':'Tidak hadir'],[],
+      const ws=XLSX.utils.aoa_to_sheet([['Daftar Hadir Ekstrakurikuler'],['Ekskul',e.nama_ekskul],['Tanggal',d.tgl],...(e.mode==='petugas'?[['Jenis','Kegiatan harian (kehadiran petugas)']]:[['Pertemuan ke',d.ke],['Materi',d.materi||'-'],['Pelatih',d.pelatih?'Hadir':'Tidak hadir']]),[],
         ['No','NISN','Nama','Kelas','Status','Catatan'],...d.baris.map((b,i)=>[i+1,b.nisn,b.nama,b.kelas,cap(b.st),b.n||'']),[],
         ['Ringkasan'],['Hadir',c.hadir],['Izin',c.izin],['Sakit',c.sakit],['Alpa',c.alpa],['Total',d.baris.length]]);
       ws['!cols']=[{wch:14},{wch:14},{wch:30},{wch:12},{wch:10},{wch:34}];
       const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Daftar Hadir');
-      saveWb(wb,('Presensi_'+e.nama_ekskul+'_'+d.tgl+'_Pertemuan-'+d.ke+'.xlsx').replace(/[^\w.\-]+/g,'_'));
+      saveWb(wb,('Presensi_'+e.nama_ekskul+'_'+d.tgl+(e.mode==='petugas'?'':'_Pertemuan-'+d.ke)+'.xlsx').replace(/[^\w.\-]+/g,'_'));
       toast('File Excel pertemuan diunduh');
     }
   }catch(e){toast('Gagal menyiapkan file. Coba lagi.','err')}
@@ -791,7 +799,7 @@ function periodes(){ // semester berjalan + 3 sebelumnya (Ganjil: Jul–Des, Gen
   return out;
 }
 const nNorm=s=>String(s==null?'':s).replace(/\D/g,'').replace(/^0+/,''); // NISN dari Excel sering kehilangan angka 0 di depan
-const nEks=()=>[...S.d.ekskul,...(['kesiswaan','tahfidz'].includes(S.d.user.peran)?[{id:'TAHFIDZ',nama_ekskul:'Tahfidz (ekskul wajib)'}]:[])];
+const nEks=()=>[...S.d.ekskul.filter(e=>e.mode!=='petugas'),...(['kesiswaan','tahfidz'].includes(S.d.user.peran)?[{id:'TAHFIDZ',nama_ekskul:'Tahfidz (ekskul wajib)'}]:[])];
 function nMembers(){const nv=S.nv; // Tahfidz: seluruh siswa aktif (boleh dipersempit per kelas)
   if(nv.ek==='TAHFIDZ')return S.d.siswa.filter(x=>!nv.kl||x.kelas===nv.kl).slice().sort((a,b)=>a.nama.localeCompare(b.nama));
   return S.d.anggota.filter(a=>a.e===nv.ek).map(a=>S.map[a.s]).filter(Boolean).sort((a,b)=>a.nama.localeCompare(b.nama))}
@@ -1301,9 +1309,10 @@ const A={
   mbatal:()=>{S.add.clear();S.del.clear();memList();memRes(S.mr.length?'':'Cari nama/NISN atau pilih kelas untuk menampilkan siswa.');memPend()},
   mall:()=>{S.mr.forEach(x=>{if(!isMem(x.id))S.add.add(x.id)});memRes();memPend()},
   mnone:()=>{S.add.clear();memRes(S.mr.length?'':'Cari nama/NISN atau pilih kelas untuk menampilkan siswa.');memPend()},
+  hrsemua:()=>$$('#fe input[name=h]').forEach(i=>{i.checked=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'].includes(i.value)}),
   kbaru:()=>{const f=$('#fe');f.reset();f.elements.id.value='';$('#fet').textContent='Tambah Ekskul';f.hidden=false;f.scrollIntoView({behavior:'smooth'})},
   kbatal:()=>{$('#fe').hidden=true},
-  kedit:e=>{const x=S.d.ekskul.find(z=>z.id===e.dataset.id),f=$('#fe'),m=f.elements;if(!x)return;m.id.value=x.id;m.n.value=x.nama_ekskul;$$('input[name=h]',f).forEach(i=>{i.checked=String(x.hari).split(',').map(z=>z.trim()).includes(i.value)});m.j.value=String(x.jam).slice(0,5);m.l.value=x.lokasi||'';$('#fet').textContent='Ubah Ekskul';f.hidden=false;f.scrollIntoView({behavior:'smooth'})},
+  kedit:e=>{const x=S.d.ekskul.find(z=>z.id===e.dataset.id),f=$('#fe'),m=f.elements;if(!x)return;m.id.value=x.id;m.n.value=x.nama_ekskul;$$('input[name=h]',f).forEach(i=>{i.checked=String(x.hari).split(',').map(z=>z.trim()).includes(i.value)});m.j.value=String(x.jam).slice(0,5);m.l.value=x.lokasi||'';m.m.value=x.mode==='petugas'?'petugas':'';$('#fet').textContent='Ubah Ekskul';f.hidden=false;f.scrollIntoView({behavior:'smooth'})},
   kang:e=>{S.mk=e.dataset.id;S.mem=new Set(S.d.anggota.filter(a=>a.e===S.mk).map(a=>a.s));S.qk='';S.kl='';renderAng();$('#fa').scrollIntoView({behavior:'smooth'})},
   atutup:()=>{$('#fa').hidden=true},apilih:()=>{flt().forEach(x=>S.mem.add(x.id));refAng()},akosong:()=>{flt().forEach(x=>S.mem.delete(x.id));refAng()},asimpan:simpanAng,
   kdel:e=>two(e,'Yakin?',()=>{const id=e.dataset.id;
