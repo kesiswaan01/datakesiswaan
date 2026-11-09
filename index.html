@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="verbar" class="verbar no-print" role="alert" hidden></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-dash" viewBox="0 0 24 24"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 11h8v10h-8zM3 14h8v7H3z"/></symbol>
 <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2 4 2 4H5"/></symbol>
@@ -39,6 +40,7 @@
     <label>Nama pengguna<input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
     <label>Kata sandi<input name="p" type="password" autocomplete="current-password" required></label>
     <p id="lerr" class="er" role="alert"></p>
+    <p class="vinfo mu no-print" style="font-size:11px;text-align:center;margin:8px 0 0"></p>
     <button class="btn pri w">Masuk</button>
     <p style="text-align:center;margin:12px 0 0"><button type="button" class="btn w" data-act="lt" data-v="o">Masuk sebagai Orang Tua / Siswa</button></p>
   </form>
@@ -84,6 +86,7 @@
       <section id="s-ekskul" hidden>
         <div class="hd"><div><h1>Ekstrakurikuler</h1><p class="mu">Pilih ekskul lalu isi daftar hadir pertemuan</p></div></div>
         <div id="ekl" class="grid3"></div>
+        <div id="jpf"></div>
         <div id="pf"></div>
         <div id="fm" class="card" hidden></div>
         <div class="card"><div class="bar"><h3>Riwayat Presensi</h3><button class="btn pri" data-act="unduhrw">Unduh Excel</button></div>
@@ -258,11 +261,16 @@
       </section>
       <section id="s-anak" hidden><div class="hd"><div><h1 id="an-n">Data Ananda</h1><p class="mu" id="an-s"></p></div></div><div id="an-b"></div></section>
       <footer id="fx" class="mu no-print" style="text-align:center;padding:16px"></footer>
+      <p class="vinfo mu no-print" style="text-align:center;font-size:11px;margin:0 0 16px"></p>
     </div>
   </div>
 </div>
 <dialog id="vm" aria-label="Pratinjau berkas"><div class="vh"><b>Pratinjau Berkas</b><div><a id="vd" class="btn" href="#">Unduh</a> <button class="btn" data-act="vclose">Tutup</button></div></div><div id="vb"></div></dialog>
 <dialog id="dm" aria-label="Konfirmasi hapus"><div class="vh"><b id="dt">Hapus siswa</b></div><div id="db" style="padding:16px"></div><div class="vh" style="border-top:1px solid var(--bd);border-bottom:0;justify-content:flex-end"><button class="btn" data-act="dbatal">Batal</button> <button class="btn pri dng2" id="dok" data-act="dok">Hapus Permanen</button></div></dialog>
+<dialog id="ekm" aria-label="Ekskul diampu"><div style="display:grid;gap:10px;padding:18px;min-width:min(420px,88vw)"><b id="ekmt" style="font-size:17px">Ekskul diampu</b>
+  <p class="mu" style="margin:0">Satu akun dapat memegang beberapa ekskul atau kegiatan harian sekaligus.</p>
+  <div id="ekml" style="display:grid;gap:6px;max-height:50vh;overflow:auto"></div><p id="ekme" class="er" role="alert" style="margin:0"></p>
+  <div class="bar"><button class="btn pri" data-act="eksimpan">Simpan</button><button class="btn" data-act="ektutup">Batal</button></div></div></dialog>
 <dialog id="gm" aria-label="Ubah kata sandi"><form id="fgs" style="display:grid;gap:12px;padding:18px;min-width:min(420px,88vw)">
   <b id="gmt" style="font-size:17px">Ubah kata sandi</b><p class="mu" id="gmp" style="margin:0"></p>
   <label>Kata sandi saat ini<input name="a" type="password" autocomplete="current-password" required></label>

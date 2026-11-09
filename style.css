@@ -97,3 +97,12 @@ button,a,select,input,label,summary,[data-act]{touch-action:manipulation;-webkit
   body.cetak-siswa .lap tr{break-inside:avoid}body.cetak-siswa .lap thead{display:table-header-group}body.cetak-siswa .lap .ttd{break-inside:avoid}body.cetak-siswa .lap h3{break-after:avoid}
   body.cetak-siswa .lap table{display:table;overflow:visible}body.cetak-siswa .lap .ringk{grid-template-columns:repeat(4,1fr)}
 }
+
+/* Penanda ketidakcocokan versi server/tampilan */
+.verbar{position:sticky;top:0;z-index:200;background:#b45309;color:#fff;padding:9px 14px;font-size:13px;font-weight:500;text-align:center}
+
+/* ── Jadwal petugas (kegiatan harian) ── */
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--th);border:1px solid var(--bd);border-radius:999px;padding:3px 4px 3px 12px;margin:3px 6px 3px 0;font-size:13px}
+.chip small{display:inline!important;opacity:.75;margin:0}.chipx{border:0;background:transparent;color:inherit;font-size:18px;line-height:1;width:26px;height:26px;border-radius:50%;cursor:pointer}.chipx:hover,.chipx:focus-visible{background:rgba(127,127,127,.25)}
+td.asal{font-size:13px}
+@media(max-width:640px){#pf td.asal::before{content:'Asal ekskul: ';font-size:12px;opacity:.7}}

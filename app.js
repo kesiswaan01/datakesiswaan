@@ -95,7 +95,7 @@ async function doLogin(f){
 }
 function out(silent){
   if(S.t&&!silent)gs('logout',S.t).catch(()=>{});
-  clearTimeout(tBoot);tBoot=0;rm('tok',1);rm('boot',1);
+  clearTimeout(tBoot);tBoot=0;S.jp=null;rm('tok',1);rm('boot',1);
   try{sessionStorage.setItem('pesanLogin',silent?'Sesi berakhir, silakan masuk lagi.':'')}catch(e){}
   location.reload(); // muat ulang bersih: tidak ada sisa data, daftar saran, atau status milik pengguna sebelumnya di halaman (aman untuk perangkat bersama)
 }
@@ -164,12 +164,14 @@ function renderDash(){
 const pertemuanHariIni=id=>S.d.pertemuan.find(x=>x.e===id&&x.tgl===iso(new Date()));
 function hariIni(e){ // status kegiatan harian hari ini: sudah/belum diisi
   const x=pertemuanHariIni(e.id);
-  return x?`<div class="ekm">Hari ini: <span class="pill ok">sudah diisi</span> <small>${x.c.H} hadir dari ${tot(x.c)} petugas</small></div>`:'<div class="ekm">Hari ini: <span class="pill wn">belum diisi</span></div>';
+  const hr=hariDari(iso(new Date())),jt=adaJadwal(e.id)?`<small>${jadwalHari(e.id,hr).length} petugas terjadwal hari ${hr}</small>`:'<small>Jadwal petugas belum disusun</small>';
+  return x?`<div class="ekm">Hari ini: <span class="pill ok">sudah diisi</span> <small>${x.c.H} hadir dari ${tot(x.c)} petugas</small></div>`:`<div class="ekm">Hari ini: <span class="pill wn">belum diisi</span> ${jt}</div>`;
 }
 function renderEks(){
   const d=S.d;
   $('#ekl').innerHTML=d.ekskul.map(e=>{const m=d.anggota.filter(a=>a.e===e.id).length,pt=d.pertemuan.filter(x=>x.e===e.id);let n=0,h=0;pt.forEach(x=>{n+=tot(x.c);h+=x.c.H});
-    return `<div class="card ek"><h3>${esc(e.nama_ekskul)}</h3><small>${esc(hariTxt(e))}, ${esc(e.jam)} · ${esc(e.lokasi)}</small><div class="ekm"><b>${m}</b> ${e.mode==='petugas'?'petugas':'siswa'} <span class="pill ok">${n?Math.round(h*100/n):0}% hadir</span></div>${e.mode==='petugas'?hariIni(e):''}<button class="btn pri w" data-act="pres" data-id="${esc(e.id)}">${e.mode==='petugas'?(pertemuanHariIni(e.id)?'Perbaiki Kehadiran Hari Ini':'Isi Kehadiran Hari Ini'):'Isi Kehadiran'}</button>${d.user.peran!=='kesiswaan'?`<button class="btn w" style="margin-top:8px" data-act="mem" data-id="${esc(e.id)}">Kelola Anggota</button>`:''}</div>`}).join('')||'<p class="mu">Belum ada ekskul untuk akun ini.</p>';
+    return `<div class="card ek"><h3>${esc(e.nama_ekskul)}</h3>${e.mode==='petugas'?'<span class="pill in">Kegiatan harian · kehadiran petugas</span> ':''}${e.mode==='petugas'?'<div><span class="pill in">Kegiatan harian · hanya kehadiran petugas</span></div>':''}<small>${esc(hariTxt(e))}, ${esc(e.jam)} · ${esc(e.lokasi)}</small><div class="ekm"><b>${m}</b> ${e.mode==='petugas'?'petugas':'siswa'} <span class="pill ok">${n?Math.round(h*100/n):0}% hadir</span></div>${e.mode==='petugas'?hariIni(e):''}<button class="btn pri w" data-act="pres" data-id="${esc(e.id)}">${e.mode==='petugas'?(pertemuanHariIni(e.id)?'Perbaiki Kehadiran Hari Ini':'Isi Kehadiran Hari Ini'):'Isi Kehadiran'}</button>${e.mode==='petugas'?`<button class="btn w" style="margin-top:8px" data-act="jadwal" data-id="${esc(e.id)}">Jadwal Petugas</button>`:''}${d.user.peran!=='kesiswaan'?`<button class="btn w" style="margin-top:8px" data-act="mem" data-id="${esc(e.id)}">Kelola Anggota</button>`:''}</div>`}).join('')||'<p class="mu">Belum ada ekskul untuk akun ini.</p>';
+  if(S.jp)renderJadwal();
   renderRiwayat();
 }
 function sum(){const c={hadir:0,izin:0,sakit:0,alpa:0};Object.values(S.att).forEach(v=>c[v]++);$('#ps').innerHTML=Object.keys(c).map(k=>`<span class="pill ${SC[k]}">${k[0].toUpperCase()+k.slice(1)}: ${c[k]}</span>`).join('')}
@@ -178,6 +180,7 @@ function savePres(){
   const e=S.ek,tg=$('#pd').value;if(!tg)return toast('Isi tanggal pertemuan','err');
   if(S.d.pertemuan.some(x=>x.e===e&&x.tgl===tg))return toast('Pertemuan pada tanggal ini sudah tercatat','err');
   const baris=$$('#pf tr[data-s]').map(tr=>({s:tr.dataset.s,st:S.att[tr.dataset.s],n:$('[data-n]',tr).value})),c={H:0,I:0,S:0,A:0},K={hadir:'H',izin:'I',sakit:'S',alpa:'A'};
+  if(isPetugas(e)&&!baris.length)return toast('Belum ada petugas dalam daftar. Atur jadwal atau tambahkan petugas pengganti.','err');
   baris.forEach(b=>c[K[b.st]]++);
   const p={id:uid(),ekskul:e,tanggal:tg,ke:+$('#pk').value||1,materi:$('#pm').value,pelatih:$('#pp').checked,baris};
   S.d.pertemuan.unshift({id:p.id,e,tgl:tg,ke:p.ke,materi:p.materi,c});
@@ -447,6 +450,21 @@ function impor(f){
 }
 
 /* ── Akun Pembina & Pelatih ── */
+const idList=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean);
+const ekNamaPenuh=v=>idList(v).map(i=>(S.d.ekskul.find(e=>e.id===i)||{}).nama_ekskul||i).join(', ');
+const ekNama=v=>{const n=idList(v);return n.length>2?n.length+' ekskul':ekNamaPenuh(v)};
+function bukaEk(id){
+  const u=S.d.users.find(x=>x.id===id);if(!u)return;S.ekuid=id;const pilih=new Set(idList(u.ek));
+  $('#ekmt').textContent='Ekskul diampu — '+u.nm;$('#ekme').textContent='';
+  $('#ekml').innerHTML=S.d.ekskul.map(e=>`<label class="chk" style="height:auto"><input type="checkbox" value="${esc(e.id)}"${pilih.has(e.id)?' checked':''}>${esc(e.nama_ekskul)}${e.mode==='petugas'?' <small>(kegiatan harian)</small>':''}</label>`).join('');
+  $('#ekm').showModal();
+}
+function simpanEk(){
+  const u=S.d.users.find(x=>x.id===S.ekuid);if(!u)return;const v=$$('#ekml input:checked').map(i=>i.value);
+  if(!v.length)return $('#ekme').textContent='Pilih minimal satu ekskul.';
+  if(v.length>12)return $('#ekme').textContent='Maksimal 12 ekskul per akun.';
+  u.ek=v.join(',');$('#ekm').close();renderUsr();toast('Perubahan disimpan');queue('saveUser',{id:u.id,u:u.u,nm:u.nm,r:u.r,ek:u.ek,a:u.a});
+}
 function renderUsr(){
   const d=S.d;if(!d.users)return;
   const RL=[['pelatih','Pelatih'],['pembina','Pembina'],['disiplin','Penegak Disiplin'],['tahfidz','Guru Tahfidz'],['kesiswaan','Kesiswaan (admin)']];
@@ -454,7 +472,7 @@ function renderUsr(){
     return`<tr><td><input data-uf="nm" data-id="${id}" value="${esc(u.nm)}" maxlength="100" aria-label="Nama lengkap"></td>
     <td><input data-uf="u" data-id="${id}" value="${esc(u.u)}" maxlength="30" autocapitalize="none" aria-label="Nama pengguna"></td>
     <td><select data-uf="r" data-id="${id}"${me?' disabled title="Peran akun sendiri tidak dapat diubah"':''} aria-label="Peran">${u.r?'':'<option value="" selected>— pilih peran —</option>'}${RL.map(r=>`<option value="${r[0]}"${u.r===r[0]?' selected':''}>${r[1]}</option>`).join('')}</select></td>
-    <td><select data-uf="ek" data-id="${id}"${kes||!u.r?' disabled':''} aria-label="Ekskul diampu">${kes||!u.r?`<option>${!u.r?'Pilih peran dulu':u.r==='kesiswaan'?'Semua ekskul':'Tidak berlaku'}</option>`:'<option value="">— pilih ekskul —</option>'+d.ekskul.map(e=>`<option value="${esc(e.id)}"${u.ek===e.id?' selected':''}>${esc(e.nama_ekskul)}</option>`).join('')}</select></td>
+    <td>${kes||!u.r?`<select data-uf="ek" data-id="${id}" disabled aria-label="Ekskul diampu"><option>${!u.r?'Pilih peran dulu':u.r==='kesiswaan'?'Semua ekskul':'Tidak berlaku'}</option></select>`:`<button class="btn sm" data-act="ekpilih" data-id="${id}" title="${esc(ekNamaPenuh(u.ek))}" aria-label="Ekskul diampu">${esc(ekNama(u.ek))||'— pilih ekskul —'}</button>`}</td>
     <td><span class="pill ${u.a?'ok':'er'}">${u.a?'Aktif':'Nonaktif'}</span>${u.r?'':' <span class="pill wn">Belum ada peran</span>'}${u.wg?' <span class="pill in">Wajib ganti sandi</span>':''}</td>
     <td><button class="btn sm" data-act="uedit" data-id="${id}">Reset sandi</button> ${me||!['pembina','pelatih',''].includes(u.r)?'':`<button class="btn sm" data-act="sandiawal" data-id="${id}">Sandi awal</button> `}${me?'':`<button class="btn sm" data-act="utog" data-id="${id}">${u.a?'Nonaktifkan':'Aktifkan'}</button>`}${me||!['pembina','pelatih',''].includes(u.r)?'':` <button class="btn sm dng" data-act="udel" data-id="${id}">Hapus</button>`}</td></tr>`}).join('');
   const n=d.users.filter(x=>!x.r).length,bn=$('#ubn');bn.hidden=!n;bn.innerHTML=n?`<span class="pill wn">${n} akun belum diberi peran</span> Akun ini belum bisa masuk. Pilih peran (dan ekskul untuk pembina/pelatih) di tabel di bawah.`:'';
@@ -568,9 +586,23 @@ const HARI=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 function renderKel(){
   const d=S.d;if(d.user.peran!=='kesiswaan')return;
   $('#kb').innerHTML=d.ekskul.map(e=>{const n=d.anggota.filter(a=>a.e===e.id).length;
-    return`<tr><td><b>${esc(e.nama_ekskul)}</b></td><td>${esc(hariTxt(e))}, ${esc(String(e.jam).slice(0,5))}<small>${esc(e.lokasi)}</small></td><td>${n} siswa</td><td><button class="btn sm" data-act="kang" data-id="${esc(e.id)}">Anggota</button> <button class="btn sm" data-act="kedit" data-id="${esc(e.id)}">Ubah</button> <button class="btn sm" data-act="kdel" data-id="${esc(e.id)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="4" class="mu">Belum ada ekskul.</td></tr>';
+    return`<tr><td><b>${esc(e.nama_ekskul)}</b>${e.mode==='petugas'?'<small><span class="pill in">Kegiatan harian · hanya kehadiran petugas</span></small>':'<small class="mu">Ekskul biasa</small>'}</td><td>${esc(hariTxt(e))}, ${esc(String(e.jam).slice(0,5))}<small>${esc(e.lokasi)}</small></td><td>${n} siswa</td><td><button class="btn sm" data-act="kang" data-id="${esc(e.id)}">Anggota</button> <button class="btn sm" data-act="kedit" data-id="${esc(e.id)}">Ubah</button> <button class="btn sm" data-act="kdel" data-id="${esc(e.id)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="4" class="mu">Belum ada ekskul.</td></tr>';
 }
 const isPetugas=id=>{const e=S.d.ekskul.find(x=>x.id===id);return !!e&&e.mode==='petugas'}; // kegiatan harian: hanya kehadiran petugas
+/* ── Kegiatan harian: jadwal petugas per hari + keterangan asal ekskul ── */
+const HARI_ID=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const hariDari=tg=>{const [y,m,d]=String(tg).split('-').map(Number);return HARI_ID[new Date(y,m-1,d).getDay()]};
+const urutNama=(a,b)=>String(a.nama).localeCompare(String(b.nama));
+const adaJadwal=ek=>(S.d.jadwal||[]).some(j=>j.e===ek);
+const jadwalHari=(ek,h)=>(S.d.jadwal||[]).filter(j=>j.e===ek&&j.h===h).map(j=>S.map[j.s]).filter(Boolean).sort(urutNama);
+function asalTxt(id){ // ekskul biasa yang diikuti siswa: dari server, atau dihitung dari keanggotaan bila belum ada
+  const a=(S.d.asal||{})[id];if(a!==undefined)return a;
+  return S.d.ekskul.filter(e=>e.mode!=='petugas'&&S.d.anggota.some(x=>x.e===e.id&&x.s===id)).map(e=>e.nama_ekskul).join(', ');
+}
+function petugasRows(ek,tg){ // daftar kehadiran = petugas yang dijadwalkan pada hari dari tanggal itu (bila jadwal belum disusun: semua anggota)
+  const ms=adaJadwal(ek)?jadwalHari(ek,hariDari(tg)):S.d.anggota.filter(a=>a.e===ek).map(a=>S.map[a.s]).filter(Boolean).sort(urutNama);
+  return ms.map(m=>({...m,st:'hadir',n:'',asal:asalTxt(m.id)}));
+}
 const hariTxt=e=>String(e.hari||'').split(',').map(x=>x.trim()).filter(Boolean).join(', ');
 function savEks(f){
   const e=f.elements,id=e.id.value||'EK'+Date.now().toString(36),nama=e.n.value.trim(),hr=$$('input[name=h]:checked',f).map(i=>i.value);
@@ -667,11 +699,15 @@ function simpanMem(){
 /* ── Form presensi (baru & perbaikan memakai form yang sama) ── */
 function formPres(o){
   const e=S.d.ekskul.find(x=>x.id===o.ekskul);if(!e)return;
-  S.ek=o.ekskul;S.ed=o.id||null;S.att={};o.rows.forEach(m=>S.att[m.id]=m.st||'hadir');
+  const pt=e.mode==='petugas',hr=pt?hariDari(o.tgl):'',asalM=m=>m.asal!==undefined?m.asal:(m.a!==undefined?m.a:asalTxt(m.id));
+  const pool=pt?S.d.anggota.filter(a=>a.e===e.id&&!o.rows.some(r=>r.id===a.s)).map(a=>S.map[a.s]).filter(Boolean).sort(urutNama):[];
+  S.ek=o.ekskul;S.ed=o.id||null;S.att={};S.prow=o.rows;S.pctx={judul:o.judul,ke:o.ke,id:o.id,materi:o.materi,pelatih:o.pelatih};o.rows.forEach(m=>S.att[m.id]=m.st||'hadir');
   $('#pf').innerHTML=`<div class="card"><div class="ph"><h3>${esc(o.judul)} — ${esc(e.nama_ekskul)}</h3><button class="btn" data-act="closepres">Tutup</button></div>
-  <div class="fg"><label>Tanggal<input type="date" id="pd" value="${esc(o.tgl)}"></label>${e.mode==='petugas'?`<input type="hidden" id="pk" value="${esc(o.ke)}"><input type="hidden" id="pm" value=""><input type="checkbox" id="pp" hidden><p class="mu" style="align-self:end;margin:0">Kegiatan harian: catat kehadiran petugas saja.</p>`:`<label>Pertemuan ke<input type="number" id="pk" min="1" value="${esc(o.ke)}"></label><label>Materi / agenda<input id="pm" maxlength="150" value="${esc(o.materi||'')}"></label><label class="chk"><input type="checkbox" id="pp"${o.pelatih?' checked':''}>Pelatih hadir</label>`}</div>
+  <div class="fg"><label>Tanggal<input type="date" id="pd" value="${esc(o.tgl)}"></label>${e.mode==='petugas'?`<input type="hidden" id="pk" value="${esc(o.ke)}"><input type="hidden" id="pm" value=""><input type="checkbox" id="pp" hidden><p class="mu" style="align-self:end;margin:0">Kegiatan harian: catat kehadiran petugas saja. ${adaJadwal(e.id)?`Hari <b>${esc(hr)}</b>: ${o.rows.filter(r=>!r.pengganti).length} petugas terjadwal.`:`Jadwal petugas belum disusun, daftar memuat semua anggota. <button type=\"button\" class=\"btn sm\" data-act=\"jadwal\" data-id=\"${esc(e.id)}\">Susun jadwal</button>`}</p>`:`<label>Pertemuan ke<input type="number" id="pk" min="1" value="${esc(o.ke)}"></label><label>Materi / agenda<input id="pm" maxlength="150" value="${esc(o.materi||'')}"></label><label class="chk"><input type="checkbox" id="pp"${o.pelatih?' checked':''}>Pelatih hadir</label>`}</div>
   <div class="bar" style="margin-top:12px"><b>${e.mode==='petugas'?'Kehadiran Petugas':'Daftar Kehadiran'} (${o.rows.length})</b>${o.id?'':'<button class="btn" data-act="markall">Tandai semua hadir</button>'}</div>
-  <div class="tw"><table><thead><tr><th>No</th><th>${e.mode==='petugas'?'Petugas':'Siswa'}</th><th>Kelas</th><th>Status</th><th>Catatan</th></tr></thead><tbody>${o.rows.map((m,i)=>`<tr data-s="${esc(m.id)}"><td>${i+1}</td><td>${esc(m.nama)}<small>NISN ${esc(m.nisn)}</small></td><td>${esc(m.kelas)}</td><td><div class="seg">${['hadir','izin','sakit','alpa'].map(v=>`<button type="button" data-act="mark" data-v="${v}" class="${v}${(m.st||'hadir')===v?' on':''}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></td><td><input data-n maxlength="100" value="${esc(m.n||'')}" aria-label="Catatan ${esc(m.nama)}"></td></tr>`).join('')}</tbody></table></div>
+  ${pt&&pool.length?`<div class="bar" style="margin:8px 0"><select id="pgn" aria-label="Petugas pengganti"><option value="">Tambah petugas pengganti…</option>${pool.map(m=>`<option value="${esc(m.id)}">${esc(m.nama)} (${esc(m.kelas)})</option>`).join('')}</select><button type="button" class="btn" data-act="pengganti">Tambahkan</button></div>`:''}
+  <div class="tw"><table><thead><tr><th>No</th><th>${pt?'Petugas':'Siswa'}</th><th>Kelas</th>${pt?'<th>Asal ekskul</th>':''}<th>Status</th><th>Catatan</th></tr></thead><tbody>${o.rows.map((m,i)=>`<tr data-s="${esc(m.id)}"><td>${i+1}</td><td>${esc(m.nama)}<small>NISN ${esc(m.nisn)}</small></td><td>${esc(m.kelas)}</td>${pt?`<td class="asal">${asalM(m)?esc(asalM(m)):'<span class="mu">Tanpa ekskul lain</span>'}</td>`:''}<td><div class="seg">${['hadir','izin','sakit','alpa'].map(v=>`<button type="button" data-act="mark" data-v="${v}" class="${v}${(m.st||'hadir')===v?' on':''}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></td><td><input data-n maxlength="100" value="${esc(m.n||'')}" aria-label="Catatan ${esc(m.nama)}"></td></tr>`).join('')}</tbody></table></div>
+  ${o.rows.length?'':`<p class="mu" role="status">${pt?'Belum ada petugas yang dijadwalkan pada hari '+esc(hr)+'. Atur jadwal, atau tambahkan petugas pengganti.':'Belum ada anggota.'}</p>`}
   <div id="ps" class="sum"></div><button class="btn pri" data-act="savepres">${o.id?'Simpan Perbaikan':'Simpan Kehadiran'}</button></div>`;
   sum();$('#pf').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -679,7 +715,7 @@ function openPres(id){
   const hi=isPetugas(id)&&pertemuanHariIni(id);
   if(hi){toast('Kehadiran hari ini sudah diisi. Membuka untuk diperbaiki.');return editPres(hi.id)}
   const d=S.d,ms=d.anggota.filter(a=>a.e===id).map(a=>S.map[a.s]).filter(Boolean);
-  formPres({ekskul:id,judul:'Form Presensi',tgl:iso(new Date()),ke:d.pertemuan.filter(x=>x.e===id).length+1,materi:'',pelatih:true,rows:ms.map(m=>({...m,st:'hadir',n:''}))});
+  formPres({ekskul:id,judul:'Form Presensi',tgl:iso(new Date()),ke:d.pertemuan.filter(x=>x.e===id).length+1,materi:'',pelatih:true,rows:isPetugas(id)?petugasRows(id,iso(new Date())):ms.map(m=>({...m,st:'hadir',n:''}))});
 }
 async function editPres(id,btn){
   btn&&btn.classList.add('load');
@@ -709,8 +745,23 @@ function riwayatFilter(){const k=($('#hk')||{}).value||'',a=($('#hd')||{}).value
 function renderRiwayat(){
   const d=S.d,adm=d.user.peran==='kesiswaan',L=riwayatFilter(),en=id=>(d.ekskul.find(e=>e.id===id)||{}).nama_ekskul||'';
   const pages=Math.max(1,Math.ceil(L.length/10)),c=S.pgx.rw=Math.min(S.pgx.rw,pages);
-  $('#rw').innerHTML=L.slice((c-1)*10,c*10).map(x=>`<tr><td>${esc(x.tgl)}</td><td>${esc(en(x.e))}</td><td>${isPetugas(x.e)?'Harian':'Ke-'+esc(x.ke)}${x.materi?`<small>${esc(x.materi)}</small>`:''}</td><td>${x.c.H}/${tot(x.c)} <span class="pill ok">${tot(x.c)?Math.round(x.c.H*100/tot(x.c)):0}%</span></td><td><button class="btn sm" data-act="rwxl" data-id="${esc(x.id)}">Unduh</button> <button class="btn sm" data-act="rwedit" data-id="${esc(x.id)}">Perbaiki</button>${adm?` <button class="btn sm" data-act="rwdel" data-id="${esc(x.id)}">Hapus</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Belum ada riwayat pada filter ini.</td></tr>';
+  $('#rw').innerHTML=L.slice((c-1)*10,c*10).map(x=>`<tr><td>${esc(x.tgl)}</td><td>${esc(en(x.e))}</td><td>${isPetugas(x.e)?'Harian':'Ke-'+esc(x.ke)}${x.materi?`<small>${esc(x.materi)}</small>`:''}</td><td>${x.c.H}/${tot(x.c)} <span class="pill ok">${tot(x.c)?Math.round(x.c.H*100/tot(x.c)):0}%</span></td><td><button class="btn sm" data-act="rwxl" data-id="${esc(x.id)}">Unduh</button> <button class="btn sm" data-act="rwedit" data-id="${esc(x.id)}">Perbaiki</button>${adm?` <button class="btn sm" data-act="rwpindah" data-id="${esc(x.id)}">Pindahkan</button> <button class="btn sm" data-act="rwdel" data-id="${esc(x.id)}">Hapus</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Belum ada riwayat pada filter ini.</td></tr>';
   $('#rwp').innerHTML=pgb('rw',c,pages,L.length);
+}
+function dlgPindah(id){
+  const x=S.d.pertemuan.find(p=>p.id===id);if(!x)return;const en=i=>(S.d.ekskul.find(e=>e.id===i)||{}).nama_ekskul||i;
+  S.dx={pindah:id};$('#dt').textContent='Pindahkan catatan kehadiran';
+  $('#db').innerHTML=`<p>Catatan kehadiran tanggal <b>${esc(x.tgl)}</b> saat ini tercatat di <b>${esc(en(x.e))}</b>. Pindahkan ke:</p><label>Kegiatan tujuan<select id="pdt">${S.d.ekskul.filter(e=>e.id!==x.e).map(e=>`<option value="${esc(e.id)}">${esc(e.nama_ekskul)}</option>`).join('')}</select></label><p class="mu">Daftar kehadiran ikut berpindah apa adanya; pastikan siswa yang tercatat memang peserta kegiatan tujuan. Bila kegiatan tujuan sudah punya catatan pada tanggal itu, pemindahan ditolak.</p>`;
+  $('#dok').textContent='Pindahkan';$('#dok').disabled=false;$('#dm').showModal();
+}
+async function pindahKirim(btn){
+  const id=S.dx.pindah,tujuan=($('#pdt')||{}).value;if(!tujuan)return;btn.classList.add('load');
+  try{const r=await gs('pindahkanPertemuan',S.t,{id,tujuan});
+    if(r.message==='SESI'){btn.classList.remove('load');return out(1)}
+    if(!r.success)toast(r.message,'err');
+    else{const x=S.d.pertemuan.find(p=>p.id===id);if(x){x.e=tujuan;if(r.data.ke)x.ke=r.data.ke}$('#dm').close();renderAll();toast('Catatan kehadiran dipindahkan');refresh()}
+  }catch(e){toast(pesanGagal(e),'err')}
+  btn.classList.remove('load');
 }
 async function unduhPertemuan(id,btn){
   if(!window.XLSX)return toast('Pustaka Excel belum termuat. Tunggu sebentar lalu coba lagi.','err');
@@ -722,7 +773,7 @@ async function unduhPertemuan(id,btn){
       const d=r.data,e=S.d.ekskul.find(x=>x.id===d.ekskul)||{nama_ekskul:'Ekskul'},c={hadir:0,izin:0,sakit:0,alpa:0},cap=v=>v?v[0].toUpperCase()+v.slice(1):'';
       d.baris.forEach(b=>{if(c[b.st]!==undefined)c[b.st]++});
       const ws=XLSX.utils.aoa_to_sheet([['Daftar Hadir Ekstrakurikuler'],['Ekskul',e.nama_ekskul],['Tanggal',d.tgl],...(e.mode==='petugas'?[['Jenis','Kegiatan harian (kehadiran petugas)']]:[['Pertemuan ke',d.ke],['Materi',d.materi||'-'],['Pelatih',d.pelatih?'Hadir':'Tidak hadir']]),[],
-        ['No','NISN','Nama','Kelas','Status','Catatan'],...d.baris.map((b,i)=>[i+1,b.nisn,b.nama,b.kelas,cap(b.st),b.n||'']),[],
+        e.mode==='petugas'?['No','NISN','Nama','Kelas','Asal Ekskul','Status','Catatan']:['No','NISN','Nama','Kelas','Status','Catatan'],...d.baris.map((b,i)=>e.mode==='petugas'?[i+1,b.nisn,b.nama,b.kelas,b.a||'-',cap(b.st),b.n||'']:[i+1,b.nisn,b.nama,b.kelas,cap(b.st),b.n||'']),[],
         ['Ringkasan'],['Hadir',c.hadir],['Izin',c.izin],['Sakit',c.sakit],['Alpa',c.alpa],['Total',d.baris.length]]);
       ws['!cols']=[{wch:14},{wch:14},{wch:30},{wch:12},{wch:10},{wch:34}];
       const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Daftar Hadir');
@@ -777,6 +828,7 @@ function confirmDel(x,k){
   $('#dok').disabled=tot>0;$('#dm').showModal();
 }
 async function hapusSis(btn){
+  if(S.dx&&S.dx.pindah)return pindahKirim(btn);
   if(S.dx&&S.dx.sandi)return resetSandiKirim(btn);
   if(S.dx&&S.dx.pdel)return hapusPresKirim(btn);
   if(S.dx&&S.dx.tolak)return tolakPresKirim(btn);
@@ -1212,6 +1264,12 @@ $('#dm').addEventListener('close',()=>{$('#dok').textContent='Hapus Permanen'});
 /* ── Laporan per siswa: pelanggaran + keterlambatan → pratinjau, cetak A4 (PDF), Excel ── */
 const BATAS_POIN=30;
 const tglID=v=>{try{const [y,m,d]=String(v).split('-').map(Number);const t=new Date(y,m-1,d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});return t==='Invalid Date'?v:t}catch(e){return v}};
+function kopHTML(){const kv=S.d.kv||{},logo=kv.logo_thumb?`<img src="${esc(kv.logo_thumb)}" alt="">`:'';return `<div class="kop">${logo}<div><h2>${esc(kv.nama_aplikasi||'Aplikasi Kesiswaan')}</h2><div>${esc(kv.teks_footer||'')}</div></div></div>`}
+function cetakHTML(html){ // cetak A4 isi apa pun lewat wadah #cetak (aplikasi lain disembunyikan oleh CSS cetak)
+  $('#cetak').innerHTML=html;document.body.classList.add('cetak-siswa');
+  const bersih=()=>{document.body.classList.remove('cetak-siswa');$('#cetak').innerHTML='';removeEventListener('afterprint',bersih)};
+  addEventListener('afterprint',bersih);setTimeout(()=>print(),60);
+}
 function lapHTML(d){
   const kv=S.d.kv||{},kop=kv.nama_aplikasi||'Aplikasi Kesiswaan',sub=kv.teks_footer||'',logo=kv.logo_thumb?`<img src="${esc(kv.logo_thumb)}" alt="">`:'';
   const tp=d.pel.reduce((a,x)=>a+x.p,0),kat=['Ringan','Sedang','Berat'].map(k=>`${k}: ${d.pel.filter(x=>x.k===k).length}`).join(' · ');
@@ -1219,7 +1277,7 @@ function lapHTML(d){
   const st=ak>=BATAS_POIN?`<b>Akumulasi ${ak} poin telah mencapai batas ${BATAS_POIN} poin</b>: perlu pemanggilan orang tua (Surat Panggilan SP-1).`:`Akumulasi ${ak} poin; ${BATAS_POIN-ak} poin lagi menuju batas ${BATAS_POIN} poin untuk pemanggilan orang tua.`;
   const tb=(h,rows,kosong)=>`<table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${h.length}">${kosong}</td></tr>`}</tbody></table>`;
   const dc=d.dicetak.split(' ');
-  return `<div class="kop">${logo}<div><h2>${esc(kop)}</h2><div>${esc(sub)}</div></div></div>
+  return `${kopHTML()}
   <h2 style="text-align:center;margin:6px 0 10px">LAPORAN PELANGGARAN DAN KETERLAMBATAN SISWA</h2>
   <table class="idt"><tr><td>Nama</td><td>: <b>${esc(d.siswa.nama)}</b></td><td>Kelas</td><td>: ${esc(d.siswa.kelas)}</td></tr><tr><td>NISN</td><td>: ${esc(d.siswa.nisn)}</td><td>Periode</td><td>: ${esc(per)}</td></tr></table>
   <div class="ringk"><div><b>${d.pel.length}</b>Pelanggaran</div><div><b>${tp}</b>Poin periode ini</div><div><b>${ak}</b>Akumulasi poin</div><div><b>${d.terl.length}</b>Keterlambatan</div></div>
@@ -1256,9 +1314,7 @@ function lapOrtu(){ // orang tua: dari data anaknya yang sudah ada di layar (tan
     akum:{poin:o.poin,n:o.pel.length},dicetak:iso(n)+' '+hm(n),oleh:'Orang tua/wali'});
 }
 function cetakLap(){
-  if(!S.lap)return;$('#cetak').innerHTML=lapHTML(S.lap);document.body.classList.add('cetak-siswa');
-  const bersih=()=>{document.body.classList.remove('cetak-siswa');$('#cetak').innerHTML='';removeEventListener('afterprint',bersih)};
-  addEventListener('afterprint',bersih);setTimeout(()=>print(),60);
+  if(S.lap)cetakHTML(lapHTML(S.lap));
 }
 function lapXl(){
   const d=S.lap;if(!d)return;if(!window.XLSX)return toast('Pustaka Excel belum termuat. Tunggu sebentar lalu coba lagi.','err');
@@ -1269,6 +1325,60 @@ function lapXl(){
   saveWb(wb,('Laporan_'+d.siswa.nama+'_'+iso(new Date())+'.xlsx').replace(/[^\w.\-]+/g,'_'));toast('File Excel laporan diunduh');
 }
 
+/* ── Editor jadwal petugas (kegiatan harian) ── */
+function bukaJadwal(id){S.jp=id;renderJadwal();$('#jpf').scrollIntoView({behavior:'smooth',block:'start'})}
+function hariKegiatan(e){return String(e.hari||'').split(',').map(x=>x.trim()).filter(Boolean)}
+function renderJadwal(){
+  const box=$('#jpf'),id=S.jp,e=id&&S.d.ekskul.find(x=>x.id===id);
+  if(!e){box.innerHTML='';return}
+  const hr=hariKegiatan(e),tp=new Set((S.d.jadwal||[]).filter(j=>j.e===id).map(j=>j.s)).size;
+  box.innerHTML=`<div class="card"><div class="ph"><h3>Jadwal Petugas — ${esc(e.nama_ekskul)}</h3><div class="bar"><button class="btn" id="jcetak" data-act="jcetak">Cetak</button><button class="btn" data-act="jxl">Unduh Excel</button><button class="btn" data-act="jtutup">Tutup</button></div></div>
+  <form id="fjd" class="fg4"><label>Petugas<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+    <fieldset class="days"><legend>Bertugas pada hari</legend>${hr.map(h=>`<label class="chk"><input type="checkbox" name="jh" value="${esc(h)}">${esc(h)}</label>`).join('')}</fieldset>
+    <button class="btn pri">Tambahkan ke Jadwal</button></form>
+  <p class="mu">${tp} petugas terjadwal. Petugas yang dijadwalkan otomatis menjadi anggota kegiatan, dan boleh bertugas di beberapa hari.</p>
+  <div class="tw"><table><thead><tr><th>Hari</th><th>Petugas yang bertugas</th></tr></thead><tbody>${hr.map(h=>{const ms=jadwalHari(id,h);return `<tr><td><b>${esc(h)}</b><small>${ms.length} petugas</small></td><td>${ms.map(m=>`<span class="chip">${esc(m.nama)}<small>${esc(m.kelas)}${asalTxt(m.id)?' · '+esc(asalTxt(m.id)):''}</small><button type="button" class="chipx" data-act="jdel" data-h="${esc(h)}" data-id="${esc(m.id)}" aria-label="Hapus ${esc(m.nama)} dari hari ${esc(h)}">×</button></span>`).join('')||'<span class="mu">Belum ada petugas</span>'}</td></tr>`}).join('')}</tbody></table></div></div>`;
+  $('#jcetak').hidden=!!window.AndroidApp;
+}
+function tambahJadwal(f){
+  const id=S.jp,e=f.elements,sid=S.lab[e.s.value],hr=$$('input[name=jh]:checked',f).map(i=>i.value),adm=S.d.user.peran==='kesiswaan';
+  if(!sid)return toast('Pilih petugas dari daftar saran','err');
+  if(!hr.length)return toast('Pilih minimal satu hari','err');
+  const anggota=S.d.anggota.some(a=>a.e===id&&a.s===sid);
+  if(!anggota&&!adm)return toast('Siswa ini belum anggota kegiatan. Tambahkan lewat Kelola Anggota.','err');
+  S.d.jadwal=S.d.jadwal||[];
+  const tam=hr.filter(h=>!S.d.jadwal.some(j=>j.e===id&&j.h===h&&j.s===sid)).map(h=>({h,s:sid}));
+  if(!tam.length)return toast('Petugas ini sudah terjadwal pada hari yang dipilih','err');
+  tam.forEach(x=>S.d.jadwal.push({e:id,h:x.h,s:x.s}));if(!anggota)S.d.anggota.push({e:id,s:sid});
+  f.reset();renderEks();
+  send('saveJadwalPetugas',{ekskul:id,tambah:tam,hapus:[]},()=>{S.d.jadwal=S.d.jadwal.filter(j=>!(j.e===id&&tam.some(x=>x.h===j.h&&x.s===j.s)));if(!anggota)S.d.anggota=S.d.anggota.filter(a=>!(a.e===id&&a.s===sid));renderEks()});
+}
+function hapusJadwal(btn){
+  const id=S.jp,h=btn.dataset.h,sid=btn.dataset.id,lama=S.d.jadwal.slice();
+  S.d.jadwal=S.d.jadwal.filter(j=>!(j.e===id&&j.h===h&&j.s===sid));renderEks();
+  send('saveJadwalPetugas',{ekskul:id,tambah:[],hapus:[{h,s:sid}]},()=>{S.d.jadwal=lama;renderEks()});
+}
+function jadwalData(){const id=S.jp,e=S.d.ekskul.find(x=>x.id===id);return e?{e,per:hariKegiatan(e).map(h=>({h,ms:jadwalHari(id,h)}))}:null}
+function jadwalCetak(){
+  const d=jadwalData();if(!d)return;const n=new Date();
+  cetakHTML(`<div class="lap">${kopHTML()}<h2 style="text-align:center;margin:6px 0 10px">JADWAL PETUGAS ${esc(String(d.e.nama_ekskul).toUpperCase())}</h2><p style="text-align:center;margin:0 0 8px">${esc(hariTxt(d.e))} · ${esc(String(d.e.jam).slice(0,5))}${d.e.lokasi?' · '+esc(d.e.lokasi):''}</p>`
+    +d.per.map(x=>`<h3>${esc(x.h)} (${x.ms.length} petugas)</h3><table><thead><tr><th>No</th><th>Nama petugas</th><th>Kelas</th><th>Asal ekskul</th></tr></thead><tbody>${x.ms.map((m,i)=>`<tr><td>${i+1}</td><td>${esc(m.nama)}</td><td>${esc(m.kelas)}</td><td>${esc(asalTxt(m.id)||'-')}</td></tr>`).join('')||'<tr><td colspan="4">Belum ada petugas</td></tr>'}</tbody></table>`).join('')
+    +`<p style="font-size:11px;margin-top:14px">Dicetak ${esc(tglID(iso(n)))} ${esc(hm(n))} oleh ${esc(S.d.user.nama)}</p></div>`);
+}
+function jadwalXl(){
+  const d=jadwalData();if(!d)return;if(!window.XLSX)return toast('Pustaka Excel belum termuat. Tunggu sebentar lalu coba lagi.','err');
+  const aoa=[['Jadwal Petugas',d.e.nama_ekskul],['Hari kegiatan',hariTxt(d.e)],[],['Hari','No','Nama petugas','Kelas','NISN','Asal Ekskul']];
+  d.per.forEach(x=>{if(!x.ms.length)aoa.push([x.h,'','(belum ada petugas)','','','']);x.ms.forEach((m,i)=>aoa.push([x.h,i+1,m.nama,m.kelas,m.nisn,asalTxt(m.id)||'-']))});
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:10},{wch:5},{wch:32},{wch:12},{wch:14},{wch:34}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Jadwal Petugas');saveWb(wb,('Jadwal_Petugas_'+d.e.nama_ekskul+'.xlsx').replace(/[^\w.\-]+/g,'_'));toast('File Excel jadwal diunduh');
+}
+function penggantiTambah(){
+  const sel=$('#pgn');if(!sel||!sel.value)return toast('Pilih petugas pengganti dulu','err');
+  const m=S.map[sel.value];if(!m)return;
+  const cur=(S.prow||[]).map(r=>{const tr=$$('#pf tr[data-s]').find(t=>t.dataset.s===r.id);return{...r,st:S.att[r.id]||'hadir',n:tr?$('[data-n]',tr).value:r.n}});
+  cur.push({...m,st:'hadir',n:'Pengganti',asal:asalTxt(m.id),pengganti:true});
+  formPres({...S.pctx,ekskul:S.ek,tgl:$('#pd').value,rows:cur});
+}
 /* ── Event (delegasi) ── */
 const A={
   nav:e=>go(e.dataset.p),menu:()=>document.body.classList.toggle('nav-open'),out:()=>out(),
@@ -1304,7 +1414,9 @@ const A={
   sandiawal:e=>konfirmSandiAwal([e.dataset.id]),saresetsemua:()=>konfirmSandiAwal(S.d.users.filter(u=>['pembina','pelatih'].includes(u.r)&&u.id!==S.d.user.id).map(u=>u.id)),
   satamp:async e=>{const c=$('#sacur');if(c.dataset.on==='1'){c.value='••••••••';c.dataset.on='0';e.textContent='Tampilkan';return}e.classList.add('load');try{const r=await gs('getSandiAwal',S.t);if(r.success){c.value=r.data.ada?r.data.sandi:'(belum diatur)';c.dataset.on='1';e.textContent='Sembunyikan'}else toast(r.message,'err')}catch(x){toast(pesanGagal(x),'err')}e.classList.remove('load')},
   sasimpan:async e=>{const i=$('#sanew'),v=i.value.trim();if(v.length<8)return toast('Kata sandi awal minimal 8 karakter','err');e.classList.add('load');try{const r=await gs('setSandiAwal',S.t,{sandi:v});if(r.message==='SESI'){e.classList.remove('load');return out(1)}if(!r.success)toast(r.message,'err');else{i.value='';const c=$('#sacur');c.value='••••••••';c.dataset.on='0';$('#satamp').textContent='Tampilkan';S.saCek=1;$('#sawarn').hidden=true;toast('Kata sandi awal diperbarui. Berlaku untuk impor dan atur ulang berikutnya.')}}catch(x){toast(pesanGagal(x),'err')}e.classList.remove('load')},
+  jadwal:e=>bukaJadwal(e.dataset.id),jtutup:()=>{S.jp=null;$('#jpf').innerHTML=''},jdel:e=>hapusJadwal(e),jxl:()=>jadwalXl(),jcetak:()=>jadwalCetak(),pengganti:()=>penggantiTambah(),
   lapsiswa:e=>bukaLaporan(e.dataset.id,'',''),laportu:()=>lapOrtu(),lapcetak:()=>cetakLap(),lapxl:()=>lapXl(),laptutup:()=>$('#lm').close(),
+  ekpilih:e=>bukaEk(e.dataset.id),eksimpan:simpanEk,ektutup:()=>$('#ekm').close(),rwpindah:e=>dlgPindah(e.dataset.id),
   nsimpan:nSimpan,nxl:nUnduh,nimp:()=>$('#nfile').click(),
   nbatal:()=>{S.nv.edits={};$('#nimp').innerHTML='';renderNilai()},
   mem:e=>{S.mk=e.dataset.id;renderMem();$('#fm').scrollIntoView({behavior:'smooth'})},mclose:()=>{$('#fm').hidden=true},
@@ -1342,6 +1454,7 @@ const A={
 document.addEventListener('click',ev=>{if(window.AndroidApp&&S.vf&&ev.target.closest('#vd')){ev.preventDefault();AndroidApp.saveFile(S.vf.data,S.vf.name,S.vf.mime);return}
   const e=ev.target.closest('[data-act]');if(e&&A[e.dataset.act]&&e.tagName!=='SELECT')A[e.dataset.act](e)});
 document.addEventListener('change',ev=>{const t=ev.target;
+  if(t.id==='pd'&&S.ek&&isPetugas(S.ek)&&!S.ed&&t.value&&$('#pf').innerHTML){formPres({ekskul:S.ek,judul:'Form Presensi',tgl:t.value,ke:S.d.pertemuan.filter(x=>x.e===S.ek).length+1,materi:'',pelatih:false,rows:petugasRows(S.ek,t.value)});return}
   if(t.id==='ckall'){S.pageIds.forEach(i=>t.checked?S.sel.add(i):S.sel.delete(i));renderPel();return}
   if(t.dataset.ck){t.checked?S.sel.add(t.dataset.ck):S.sel.delete(t.dataset.ck);hBar();return}
   if(t.id==='thk'||t.id==='thd'){thMuat();return}
@@ -1371,16 +1484,24 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.name==='r'&&t.form&&t.form.getAttribute('id')==='fu'){t.form.elements.k.disabled=noEk(t.value)||!t.value;return}
   if(t.dataset.act==='rows'){S.n=+t.value;S.pg=1;renderPel()}
   else if(t.dataset.act==='setst'){const x=S.d.pend.find(p=>p.id===t.dataset.id);if(!x)return;x.st=t.value;renderPend();renderDash();queue('setStatusPendaftaran',{id:x.id,status:x.st});toast('Status diperbarui')}});
-document.addEventListener('submit',ev=>{ev.preventDefault();({lg:doLogin,fp:addPel,ft:addTer,fr:addPres,fd:addPend,fs:savSis,fu:savUsr,fg:savSet,fgs:gantiKirim,fls:laporanForm,fl:tampil,lo:doLoginOrtu,fe:savEks,fj:savJenis,fth:thRekap,fpo:ortuKirimPres})[ev.target.getAttribute('id')]?.(ev.target)});
+document.addEventListener('submit',ev=>{ev.preventDefault();({lg:doLogin,fp:addPel,ft:addTer,fr:addPres,fd:addPend,fs:savSis,fu:savUsr,fg:savSet,fgs:gantiKirim,fls:laporanForm,fjd:tambahJadwal,fl:tampil,lo:doLoginOrtu,fe:savEks,fj:savJenis,fth:thRekap,fpo:ortuKirimPres})[ev.target.getAttribute('id')]?.(ev.target)});
 let dt;document.addEventListener('input',ev=>{if(ev.target.id==='qm'){clearTimeout(dt);const v=ev.target.value.trim();dt=setTimeout(()=>cari(v),400);return}if(ev.target.id==='qa'){clearTimeout(dt);const v=ev.target.value;dt=setTimeout(()=>{S.qk=v.trim().toLowerCase();refAng()},250);return}if(ev.target.type==='color'){document.documentElement.style.setProperty(ev.target.name==='a'?'--pri':'--side',ev.target.value);return}const k=ev.target.dataset.q;if(!k)return;clearTimeout(dt);const v=ev.target.value.trim().toLowerCase();dt=setTimeout(()=>{if(k==='q')S.sel.clear();if(k==='qp')S.psel.clear();S[k]=v;S.pg=1;S.pgx.pr=1;S.pgx.pd=1;S.pgx.sw=1;({dq:renderDash,q:renderPel,qp:renderPres,qd:renderPend,qs:renderSis})[k]()},120)});
 addEventListener('popstate',e=>{const p=e.state&&e.state.p;if(S.d&&p&&p!==S.p&&NAV.find(n=>n[0]===p&&navBoleh(n,{kesiswaan:3,pembina:4,pelatih:5,ortu:6,disiplin:7,tahfidz:8}[S.d.user.peran])))go(p,true)});
 addEventListener('online',flush);setInterval(flush,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.t&&Date.now()-S.last>60000&&!(ld('out')||[]).length)refresh()});
 /* ── Konfigurasi publik (mode login orang tua): tampil dari cache dulu, perbarui di latar. Sekaligus "membangunkan" server lebih awal ── */
+const APP_VERSI='2.3.0',APP_BUILD=10; // naikkan APP_BUILD bersama API_BUILD (Api.gs) tiap rilis
+function cekVersi(d){ // memberi tahu bila server (Apps Script) dan tampilan (GitHub) tidak sepasang
+  const sb=Number(d&&d.build)||0,bar=$('#verbar');let m='';
+  if(sb<APP_BUILD)m=`Server belum diperbarui (server ${d&&d.versi?'v'+d.versi:'versi lama'}, aplikasi v${APP_VERSI}). Ganti Kode.gs dan Api.gs di Apps Script, lalu Deploy → Manage deployments → pensil → New version.`;
+  else if(sb>APP_BUILD)m=`Tampilan di perangkat ini belum yang terbaru (server v${d.versi}, aplikasi v${APP_VERSI}). Tekan Ctrl+F5 untuk memuat ulang.`;
+  bar.hidden=!m;bar.textContent=m;
+  $$('.vinfo').forEach(x=>x.textContent=`Aplikasi v${APP_VERSI} · Server ${d&&d.versi?'v'+d.versi:'(versi lama)'}`);
+}
 async function muatCfg(){
   if(!API_URL||/GANTI/i.test(API_URL))return;
   try{const r=await fetch(API_URL+(API_URL.includes('?')?'&':'?')+'aksi=publik',{credentials:'omit'}),j=await r.json();
-    if(j&&j.success&&j.data){sv('cfg',j.data);if(j.data.ortuMode!==ORTU_MODE){ORTU_MODE=j.data.ortuMode;applyOrtuMode()}}}catch(e){}
+    if(j&&j.success&&j.data){sv('cfg',j.data);cekVersi(j.data);if(j.data.ortuMode!==ORTU_MODE){ORTU_MODE=j.data.ortuMode;applyOrtuMode()}}}catch(e){}
 }
 /* ── Penyegaran hemat kuota: bertanya versi data (server hanya membaca cache, tanpa membuka spreadsheet); muat ulang hanya bila berubah ── */
 function mulaiPolling(){
