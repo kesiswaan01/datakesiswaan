@@ -31,6 +31,9 @@ function arahkanSandiAwal(m){if(/Kata sandi awal/.test(String(m))){const b=$('#s
 const pesanGagal=e=>{const m=String(e&&e.message||'');return /config\.js|terlalu lama/.test(m)?m:'Gagal terhubung ke server. Periksa sambungan internet lalu coba lagi.'};
 let ORTU_MODE=(ld('cfg')||{}).ortuMode||'nisn'; // dari cache; diperbarui oleh muatCfg()
 const S={t:null,d:null,p:'dashboard',per:'week',tab:'pel',pg:1,n:10,q:'',dq:'',qp:'',qd:'',qs:'',sel:new Set(),psel:new Set(),ppage:[],pageIds:[],allIds:[],ed:null,qk:'',kl:'',mk:null,mem:new Set(),pgx:{pr:1,pd:1,sw:1,rw:1,nl:1},ek:null,att:{},last:0};
+// pembina/pelatih yang hanya memegang kegiatan harian (mis. GEMERLAP): menu Prestasi dan Nilai disembunyikan
+const hanyaPetugas=()=>{const d=S.d;return !!d&&['pembina','pelatih'].includes(d.user.peran)&&d.ekskul.length>0&&d.ekskul.every(e=>e.mode==='petugas')};
+const navBoleh=(n,ix)=>!!n[ix]&&!(hanyaPetugas()&&['prestasi','nilai'].includes(n[0]));
 const NAV=[['dashboard','Dashboard','i-dash',1,1,1,0,1],['ekskul','Ekstrakurikuler','i-flag',1,1,1],['tahfidz','Tahfidz','i-book',1,0,0,0,0,1],['keleks','Kelola Ekskul','i-gear',1,0,0],['pelanggaran','Pelanggaran & Terlambat','i-warn',1,0,0,0,1],['jenis','Jenis Pelanggaran','i-warn',1,0,0,0,0],['prestasi','Prestasi Siswa','i-trophy',1,1,1],['pendaftaran','Pendaftaran Baru','i-user',1,0,0],['siswa','Data Siswa','i-users',1,0,0],['pembina','Pembina & Pelatih','i-user',1,0,0],['laporan','Laporan & Ekspor','i-file',1,1,0],['nilai','Nilai Ekskul','i-star',1,1,1,0,0,1],['pengaturan','Pengaturan Sistem','i-gear',1,0,0],['anak','Data Anak','i-users',0,0,0,1]]; // [id,label,icon,kesiswaan,pembina,pelatih]
 const SOON=[];
 const TITLE={dashboard:'Dashboard',ekskul:'Ekstrakurikuler',pelanggaran:'Pelanggaran & Terlambat',prestasi:'Prestasi Siswa',pendaftaran:'Pendaftaran Baru',siswa:'Data Siswa',pembina:'Pembina & Pelatih',laporan:'Laporan & Ekspor',pengaturan:'Pengaturan Sistem',anak:'Data Anak',tahfidz:'Tahfidz',jenis:'Jenis Pelanggaran',nilai:'Nilai Ekskul',keleks:'Kelola Ekskul'};
@@ -76,10 +79,10 @@ function load(d){
   const u=d.user,r=u.peran;
   $('#un').textContent=u.nama;$('#ur').textContent=ROLE[r]||r;$('#role').textContent=ROLE[r]||r;
   const ix={kesiswaan:3,pembina:4,pelatih:5,ortu:6,disiplin:7,tahfidz:8}[r];
-  $('#nav').innerHTML=NAV.filter(n=>n[ix]).map(n=>`<button class="nl" data-act="nav" data-p="${n[0]}"><svg class="i"><use href="#${n[2]}"/></svg>${esc(n[1])}</button>`).join('')+
+  $('#nav').innerHTML=NAV.filter(n=>navBoleh(n,ix)).map(n=>`<button class="nl" data-act="nav" data-p="${n[0]}"><svg class="i"><use href="#${n[2]}"/></svg>${esc(n[1])}</button>`).join('')+
     SOON.map(s=>`<button class="nl" disabled><svg class="i"><use href="#i-dash"/></svg>${esc(s)}<em>Segera</em></button>`).join('');
   $('#login').hidden=true;$('#app').hidden=false;$('#bgubah').hidden=r==='ortu';
-  if(!NAV.find(n=>n[0]===S.p&&n[ix]))S.p=r==='ortu'?'anak':r==='tahfidz'?'tahfidz':'dashboard';
+  if(!NAV.find(n=>n[0]===S.p&&navBoleh(n,ix)))S.p=r==='ortu'?'anak':r==='tahfidz'?'tahfidz':'dashboard';
   fillForms();fillMore();renderAll();go(S.p);flush();
 }
 async function doLogin(f){
@@ -146,7 +149,7 @@ function renderDash(){
   const d=S.d,adm=d.user.peran==='kesiswaan',[a,b]=rng(),t=iso(new Date()),inr=x=>x>=a&&x<=b;
   const pel=(d.pel||[]).filter(x=>inr(x.tgl)),ter=d.terl||[],th=ter.filter(x=>x.tgl===t),pt=d.pertemuan.filter(x=>inr(x.tgl));
   const pp=(d.pres||[]).filter(x=>x.st==='menunggu').length,poin=pel.reduce((s,x)=>s+PN(x),0);let h=0,n=0;pt.forEach(x=>{h+=x.c.H;n+=tot(x.c)});
-  const disp=d.user.peran==='disiplin',K=[...(adm||disp?[['Total Siswa Aktif',d.total,'Seluruh rombel','i-users','in'],['Pelanggaran Periode',pel.length,'Akumulasi poin: '+poin,'i-warn','er'],['Terlambat Hari Ini',th.length,'Tercatat hari ini','i-clock','wn'],['Prestasi',(d.pres||[]).filter(x=>inr(x.tgl)&&PV(x)).length,pp?pp+' menunggu verifikasi':'Pada periode ini','i-trophy','ok'],['Pendaftar Baru',(d.pend||[]).length,(d.pend||[]).filter(x=>x.st==='Baru').length+' perlu verifikasi','i-user','in']]:[['Siswa Ekskul',d.siswa.length,'Anggota aktif','i-users','in'],['Prestasi',(d.pres||[]).filter(x=>inr(x.tgl)&&PV(x)).length,pp?pp+' menunggu verifikasi':'Pada periode ini','i-trophy','ok']]),['Pertemuan Ekskul',pt.length,'Rata-rata hadir: '+(n?Math.round(h*1000/n)/10:0)+'%','i-flag','ok']];
+  const disp=d.user.peran==='disiplin',K=[...(adm||disp?[['Total Siswa Aktif',d.total,'Seluruh rombel','i-users','in'],['Pelanggaran Periode',pel.length,'Akumulasi poin: '+poin,'i-warn','er'],['Terlambat Hari Ini',th.length,'Tercatat hari ini','i-clock','wn'],['Prestasi',(d.pres||[]).filter(x=>inr(x.tgl)&&PV(x)).length,pp?pp+' menunggu verifikasi':'Pada periode ini','i-trophy','ok'],['Pendaftar Baru',(d.pend||[]).length,(d.pend||[]).filter(x=>x.st==='Baru').length+' perlu verifikasi','i-user','in']]:[['Siswa Ekskul',d.siswa.length,hanyaPetugas()?'Petugas aktif':'Anggota aktif','i-users','in'],...(hanyaPetugas()?[]:[['Prestasi',(d.pres||[]).filter(x=>inr(x.tgl)&&PV(x)).length,pp?pp+' menunggu verifikasi':'Pada periode ini','i-trophy','ok']])]),['Pertemuan Ekskul',pt.length,'Rata-rata hadir: '+(n?Math.round(h*1000/n)/10:0)+'%','i-flag','ok']];
   if(disp)K.splice(3);
   $('#kpi').innerHTML=K.map(k=>`<div class="card kpi"><div class="kh"><span>${k[0]}</span><span class="ic ${k[4]}"><svg class="i"><use href="#${k[3]}"/></svg></span></div><b>${k[1]}</b><small>${k[2]}</small></div>`).join('');
   $$('[data-act=per]').forEach(x=>x.classList.toggle('on',x.dataset.v===S.per));
@@ -1370,7 +1373,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   else if(t.dataset.act==='setst'){const x=S.d.pend.find(p=>p.id===t.dataset.id);if(!x)return;x.st=t.value;renderPend();renderDash();queue('setStatusPendaftaran',{id:x.id,status:x.st});toast('Status diperbarui')}});
 document.addEventListener('submit',ev=>{ev.preventDefault();({lg:doLogin,fp:addPel,ft:addTer,fr:addPres,fd:addPend,fs:savSis,fu:savUsr,fg:savSet,fgs:gantiKirim,fls:laporanForm,fl:tampil,lo:doLoginOrtu,fe:savEks,fj:savJenis,fth:thRekap,fpo:ortuKirimPres})[ev.target.getAttribute('id')]?.(ev.target)});
 let dt;document.addEventListener('input',ev=>{if(ev.target.id==='qm'){clearTimeout(dt);const v=ev.target.value.trim();dt=setTimeout(()=>cari(v),400);return}if(ev.target.id==='qa'){clearTimeout(dt);const v=ev.target.value;dt=setTimeout(()=>{S.qk=v.trim().toLowerCase();refAng()},250);return}if(ev.target.type==='color'){document.documentElement.style.setProperty(ev.target.name==='a'?'--pri':'--side',ev.target.value);return}const k=ev.target.dataset.q;if(!k)return;clearTimeout(dt);const v=ev.target.value.trim().toLowerCase();dt=setTimeout(()=>{if(k==='q')S.sel.clear();if(k==='qp')S.psel.clear();S[k]=v;S.pg=1;S.pgx.pr=1;S.pgx.pd=1;S.pgx.sw=1;({dq:renderDash,q:renderPel,qp:renderPres,qd:renderPend,qs:renderSis})[k]()},120)});
-addEventListener('popstate',e=>{const p=e.state&&e.state.p;if(S.d&&p&&p!==S.p&&NAV.find(n=>n[0]===p&&n[{kesiswaan:3,pembina:4,pelatih:5,ortu:6,disiplin:7,tahfidz:8}[S.d.user.peran]]))go(p,true)});
+addEventListener('popstate',e=>{const p=e.state&&e.state.p;if(S.d&&p&&p!==S.p&&NAV.find(n=>n[0]===p&&navBoleh(n,{kesiswaan:3,pembina:4,pelatih:5,ortu:6,disiplin:7,tahfidz:8}[S.d.user.peran])))go(p,true)});
 addEventListener('online',flush);setInterval(flush,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.t&&Date.now()-S.last>60000&&!(ld('out')||[]).length)refresh()});
 /* ── Konfigurasi publik (mode login orang tua): tampil dari cache dulu, perbarui di latar. Sekaligus "membangunkan" server lebih awal ── */
