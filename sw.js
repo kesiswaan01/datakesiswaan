@@ -4,7 +4,7 @@
    • Pustaka & font CDN: stale-while-revalidate.
    • API Apps Script (script.google.com / googleusercontent.com): TIDAK PERNAH disimpan (data pribadi, selalu segar).
    Naikkan VERSI setiap kali berkas frontend diubah agar perangkat mengambil versi baru. */
-const VERSI = 'kesiswaan-v2.3.2';
+const VERSI = 'kesiswaan-v2.4.0';
 const CANGKANG = ['./', 'index.html', 'app.js', 'style.css', 'config.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 const API = /(^|\.)script\.google(usercontent)?\.com$/;
 

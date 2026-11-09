@@ -155,7 +155,14 @@
         <div class="hd"><div><h1>Prestasi Siswa</h1><p class="mu">Arsip prestasi beserta sertifikatnya</p></div></div>
         <p id="prh" class="mu" hidden>Anda dapat melihat dan mencatat prestasi siswa anggota ekskul Anda. Siswa yang belum menjadi anggota perlu ditambahkan dulu lewat Ekstrakurikuler → Kelola Anggota.</p>
         <form id="fr" class="card fg4"><h3>Catat Prestasi</h3>
-          <label>Siswa<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+          <fieldset class="days" style="grid-column:1/-1"><legend>Peserta</legend><label class="chk"><input type="radio" name="pe" value="" checked>Perorangan</label><label class="chk"><input type="radio" name="pe" value="regu">Regu / tim</label></fieldset>
+          <label id="frs">Siswa<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+          <div id="frr" hidden>
+            <label>Nama regu / tim<input name="rg" maxlength="60" placeholder="mis. Regu Elang"></label>
+            <label>Anggota regu (opsional)<input name="ag" list="dl" placeholder="Ketik nama / NISN, lalu tekan Enter atau Tambah"></label>
+            <div class="bar"><button type="button" class="btn sm" data-act="agtambah">Tambah anggota</button><small class="mu">Anggota membuat prestasi tampil di akun orang tua dan rekap tiap siswa. Boleh dikosongkan bila hanya nama regu yang dicatat.</small></div>
+            <div id="agl" aria-live="polite"></div>
+          </div>
           <label>Jenis prestasi<input name="k" required maxlength="100" placeholder="mis. Juara 1 MTQ"></label>
           <label>Tingkat<select name="l"><option>Sekolah</option><option>Kecamatan</option><option>Kota</option><option>Provinsi</option><option>Nasional</option><option>Internasional</option></select></label>
           <label>Tanggal pelaksanaan<input name="t" type="date" required></label>

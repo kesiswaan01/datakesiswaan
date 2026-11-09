@@ -106,3 +106,4 @@ button,a,select,input,label,summary,[data-act]{touch-action:manipulation;-webkit
 .chip small{display:inline!important;opacity:.75;margin:0}.chipx{border:0;background:transparent;color:inherit;font-size:18px;line-height:1;width:26px;height:26px;border-radius:50%;cursor:pointer}.chipx:hover,.chipx:focus-visible{background:rgba(127,127,127,.25)}
 td.asal{font-size:13px}
 @media(max-width:640px){#pf td.asal::before{content:'Asal ekskul: ';font-size:12px;opacity:.7}}
+#frr{grid-column:1/-1;display:grid;gap:8px}#frr[hidden],#frs[hidden]{display:none}

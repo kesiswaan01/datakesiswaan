@@ -134,6 +134,10 @@ async function flush(){
 const J=id=>S.jm[id]||{nama:'-',poin:0},PN=x=>x.pn!=null?x.pn:J(x.j).poin; // poin catatan = salinan saat dicatat
 const sid=(p,i)=>p+'-'+String(i).slice(-5).toUpperCase();
 const nm=i=>(S.map[i]||{nama:'(tidak diketahui)'}).nama;
+/* ── Prestasi perorangan atau regu/tim ── */
+const labelRegu=n=>/^\s*(regu|tim|kelompok|kontingen)\b/i.test(String(n))?String(n).trim():'Regu '+String(n).trim(); // "Elang" → "Regu Elang"; "Tim Garuda" apa adanya
+const namaPres=x=>x.pe==='regu'?labelRegu(x.rg)+((x.ag||[]).length?` (${x.ag.length} anggota)`:''):nm(x.s); // nama peserta sebuah prestasi
+const subPres=x=>x.pe==='regu'?((x.ag||[]).length?(x.ag.slice(0,3).map(nm).join(', ')+(x.ag.length>3?`, +${x.ag.length-3} lainnya`:'')):'Hanya nama regu'):'NISN '+((S.map[x.s]||{}).nisn||'');
 const PAGE_RENDER={dashboard:()=>renderDash(),ekskul:()=>renderEks(),pelanggaran:()=>renderPel(),prestasi:()=>renderPres(),pendaftaran:()=>renderPend(),siswa:()=>renderSis(),pembina:()=>renderUsr(),anak:()=>renderAnak(),keleks:()=>renderKel(),nilai:()=>renderNilai(),jenis:()=>renderJenis(),tahfidz:()=>renderTh()};
 const dirty=new Set();let idleH=0;
 function renderPage(p){if(!dirty.has(p))return;dirty.delete(p);const f=PAGE_RENDER[p];if(f)f()}
@@ -156,7 +160,7 @@ function renderDash(){
   const en=id=>(d.ekskul.find(e=>e.id===id)||{}).nama_ekskul||'Ekskul';
   const L=[...(d.pel||[]).map(x=>({id:sid('PLG',x.id),n:nm(x.s),k:(S.map[x.s]||{}).kelas,e:J(x.j).nama,w:x.tgl+' '+x.jam,p:['er',PN(x)+' Poin']})),
     ...ter.map(x=>({id:sid('TLB',x.id),n:nm(x.s),k:(S.map[x.s]||{}).kelas,e:'Terlambat: '+x.al,w:x.tgl+' '+x.jam,p:['wn','Terlambat']})),
-    ...(d.pres||[]).map(x=>({id:sid('PRS',x.id),n:nm(x.s),k:(S.map[x.s]||{}).kelas,e:x.jn+' ('+x.tk+')',w:x.tgl,p:x.st==='menunggu'?['wn','Menunggu verifikasi']:x.st==='ditolak'?['er','Ditolak']:['ok','Prestasi']})),
+    ...(d.pres||[]).map(x=>({id:sid('PRS',x.id),n:namaPres(x),k:x.pe==='regu'?'Regu':(S.map[x.s]||{}).kelas,e:x.jn+' ('+x.tk+')',w:x.tgl,p:x.st==='menunggu'?['wn','Menunggu verifikasi']:x.st==='ditolak'?['er','Ditolak']:['ok','Prestasi']})),
     ...d.pertemuan.map(x=>({id:sid('EKS',x.id),n:en(x.e),k:'Ekskul',e:'Pertemuan ke-'+x.ke,w:x.tgl,p:['ok',x.c.H+'/'+tot(x.c)+' Hadir']}))]
     .sort((p,q)=>p.w<q.w?1:-1).filter(x=>!S.dq||(x.n+x.e+x.id).toLowerCase().includes(S.dq)).slice(0,8);
   $('#act').innerHTML=L.map(x=>`<tr><td><span class="idl">${x.id}</span></td><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td>${esc(x.e)}</td><td>${esc(x.w)}</td><td><span class="pill ${x.p[0]}">${esc(x.p[1])}</span></td></tr>`).join('')||'<tr><td colspan="6" class="mu">Belum ada data.</td></tr>';
@@ -249,17 +253,17 @@ const pgb=(k,c,p,n)=>{const b=[];for(let i=Math.max(1,c-2);i<=Math.min(p,c+2);i+
 const PST={terverifikasi:['ok','Terverifikasi'],menunggu:['wn','Menunggu verifikasi'],ditolak:['er','Ditolak']},PV=x=>(x.st||'terverifikasi')==='terverifikasi';
 function renderPres(){
   const d=S.d;if(!d.pres)return;const adm=d.user.peran==='kesiswaan';
-  $('#prth').innerHTML='<tr>'+(adm?'<th style="width:44px"><input type="checkbox" id="pckall" aria-label="Pilih semua baris di halaman ini"></th>':'')+'<th>ID</th><th>Siswa</th><th>Prestasi</th><th>Tingkat</th><th>Tanggal</th>'+(adm?'<th>Status</th>':'')+'<th>Sertifikat</th>'+(adm?'<th>Aksi</th>':'')+'</tr>';
+  $('#prth').innerHTML='<tr>'+(adm?'<th style="width:44px"><input type="checkbox" id="pckall" aria-label="Pilih semua baris di halaman ini"></th>':'')+'<th>ID</th><th>Siswa / Regu</th><th>Prestasi</th><th>Tingkat</th><th>Tanggal</th>'+(adm?'<th>Status</th>':'')+'<th>Sertifikat</th>'+(adm?'<th>Aksi</th>':'')+'</tr>';
   $('#prf').hidden=!adm;$('#prrk').hidden=!adm;
   const pend=d.pres.filter(x=>x.st==='menunggu').length,bn=$('#prbn');bn.hidden=!(adm&&pend);
   if(adm&&pend)bn.innerHTML=`<span class="pill wn">${pend} laporan menunggu verifikasi</span> Dikirim orang tua. Periksa sertifikatnya, lalu klik Verifikasi atau Tolak. <button class="btn sm" data-act="prtampil">Tampilkan</button>`;
   if(adm){const kls=[...new Set((d.siswa||[]).map(x=>x.kelas).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'id',{numeric:true})),k=$('#prk'),v=k.value;k.innerHTML='<option value="">Semua kelas</option>'+kls.map(x=>`<option>${esc(x)}</option>`).join('');k.value=kls.includes(v)?v:''}
-  let L=d.pres.map(x=>{const s=S.map[x.s]||{};return{...x,n:s.nama||'-',nisn:s.nisn||''}});
+  let L=d.pres.map(x=>{const s=S.map[x.s]||{};return{...x,n:x.pe==='regu'?namaPres(x):(s.nama||'-'),nisn:s.nisn||'',sub:subPres(x)}});
   if(adm&&S.prf)L=L.filter(x=>(x.st||'terverifikasi')===S.prf);
-  if(S.qp)L=L.filter(x=>(x.n+x.nisn+x.jn+(x.pen||'')).toLowerCase().includes(S.qp));
+  if(S.qp)L=L.filter(x=>(x.n+x.nisn+x.jn+(x.pen||'')+(x.pe==='regu'?(x.ag||[]).map(nm).join(' '):'')).toLowerCase().includes(S.qp));
   const pages=Math.max(1,Math.ceil(L.length/10)),c=S.pgx.pr=Math.min(S.pgx.pr,pages),rows=L.slice((c-1)*10,c*10);S.ppage=rows.map(x=>x.id);
   $('#prb').innerHTML=rows.map(x=>{const st=PST[x.st||'terverifikasi'];
-    return`<tr>${adm?`<td><input type="checkbox" data-pk="${esc(x.id)}"${S.psel.has(x.id)?' checked':''} aria-label="Pilih ${esc(x.jn)}"></td>`:''}<td><span class="idl">${sid('PRS',x.id)}</span></td><td>${esc(x.n)}<small>NISN ${esc(x.nisn)}</small></td><td>${esc(x.jn)}<small>${esc(x.pen)}</small>${x.o==='o'&&adm?'<small>Dilaporkan orang tua</small>':''}</td><td>${esc(x.tk)}</td><td>${esc(x.tgl)}</td>${adm?`<td><span class="pill ${st[0]}">${st[1]}</span>${x.ca?`<small>${esc(x.ca)}</small>`:''}</td>`:''}<td>${x.f==='pending'?'<span class="pill in">Mengunggah…</span>':x.f&&x.st!=='ditolak'?`<button class="btn sm" data-act="view" data-id="${esc(x.f)}">Lihat</button>`:'<span class="mu">—</span>'}</td>${adm?`<td>${x.st==='menunggu'?`<button class="btn sm pri" data-act="pverif" data-id="${esc(x.id)}">Verifikasi</button> <button class="btn sm dng" data-act="ptolak" data-id="${esc(x.id)}">Tolak</button> `:x.st==='ditolak'?`<button class="btn sm" data-act="pverif" data-id="${esc(x.id)}">Verifikasi</button> `:''}<button class="btn sm dng" data-act="pdel" data-id="${esc(x.id)}">Hapus</button></td>`:''}</tr>`}).join('')||`<tr><td colspan="${adm?9:6}" class="mu">Belum ada prestasi.</td></tr>`;
+    return`<tr>${adm?`<td><input type="checkbox" data-pk="${esc(x.id)}"${S.psel.has(x.id)?' checked':''} aria-label="Pilih ${esc(x.jn)}"></td>`:''}<td><span class="idl">${sid('PRS',x.id)}</span></td><td>${esc(x.n)}<small>${esc(x.sub)}</small></td><td>${esc(x.jn)}<small>${esc(x.pen)}</small>${x.o==='o'&&adm?'<small>Dilaporkan orang tua</small>':''}</td><td>${esc(x.tk)}</td><td>${esc(x.tgl)}</td>${adm?`<td><span class="pill ${st[0]}">${st[1]}</span>${x.ca?`<small>${esc(x.ca)}</small>`:''}</td>`:''}<td>${x.f==='pending'?'<span class="pill in">Mengunggah…</span>':x.f&&x.st!=='ditolak'?`<button class="btn sm" data-act="view" data-id="${esc(x.f)}">Lihat</button>`:'<span class="mu">—</span>'}</td>${adm?`<td>${x.st==='menunggu'?`<button class="btn sm pri" data-act="pverif" data-id="${esc(x.id)}">Verifikasi</button> <button class="btn sm dng" data-act="ptolak" data-id="${esc(x.id)}">Tolak</button> `:x.st==='ditolak'?`<button class="btn sm" data-act="pverif" data-id="${esc(x.id)}">Verifikasi</button> `:''}<button class="btn sm dng" data-act="pdel" data-id="${esc(x.id)}">Hapus</button></td>`:''}</tr>`}).join('')||`<tr><td colspan="${adm?9:6}" class="mu">Belum ada prestasi.</td></tr>`;
   $('#prp').innerHTML=pgb('pr',c,pages,L.length);pBar();
 }
 function pBar(){
@@ -273,7 +277,7 @@ function confirmHapusPres(ids){
   if(!rec.length)return toast('Data prestasi tidak ditemukan','err');
   S.dx={pdel:rec.map(x=>x.id)};const ber=rec.filter(x=>x.f&&x.f!=='pending').length;
   $('#dt').textContent='Hapus prestasi';
-  $('#db').innerHTML=`<p>Hapus <b>${rec.length} prestasi</b> secara permanen?</p><ul>${rec.slice(0,5).map(x=>`<li>${esc(nm(x.s))} — ${esc(x.jn)} (${esc(x.tgl)})${x.st==='menunggu'?' · menunggu verifikasi':''}</li>`).join('')}${rec.length>5?`<li>…dan ${rec.length-5} lainnya</li>`:''}</ul>`
+  $('#db').innerHTML=`<p>Hapus <b>${rec.length} prestasi</b> secara permanen?</p><ul>${rec.slice(0,5).map(x=>`<li>${esc(namaPres(x))} — ${esc(x.jn)} (${esc(x.tgl)})${x.st==='menunggu'?' · menunggu verifikasi':''}</li>`).join('')}${rec.length>5?`<li>…dan ${rec.length-5} lainnya</li>`:''}</ul>`
     +(ber?`<p>${ber} sertifikat akan dipindahkan ke Sampah Drive.</p>`:'')
     +`<p class="mu">Tindakan ini tidak bisa dibatalkan. Prestasi yang dihapus tidak lagi terhitung di dashboard dan rekap. Untuk laporan yang keliru, pertimbangkan <b>Tolak</b> agar orang tua melihat alasannya.</p>`
     +(rec.length>1?`<label class="chk" style="height:auto;margin:8px 0 0"><input type="checkbox" id="dc">Saya mengerti, hapus semua prestasi ini</label>`:'');
@@ -305,8 +309,9 @@ async function rekapPrestasiUnduh(btn){
     if(!r.success)toast(r.message,'err');
     else if(!r.data.total)toast('Tidak ada prestasi pada pilihan ini','err');
     else{const x=r.data,wb=XLSX.utils.book_new(),sh=(o,w)=>{const ws=XLSX.utils.aoa_to_sheet([o.kolom,...o.baris]);ws['!cols']=w.map(n=>({wch:n}));return ws};
-      XLSX.utils.book_append_sheet(wb,sh(x.daftar,[5,12,14,28,10,34,12,24,20,12,12]),'Daftar Prestasi');
+      XLSX.utils.book_append_sheet(wb,sh(x.daftar,[5,12,14,30,12,34,12,24,20,12,12,12,44]),'Daftar Prestasi');
       XLSX.utils.book_append_sheet(wb,sh(x.perSiswa,[5,28,10,14,9,9,11,7,9,9,12]),'Rekap per Siswa');
+      if(x.perRegu&&x.perRegu.baris.length)XLSX.utils.book_append_sheet(wb,sh(x.perRegu,[5,26,34,12,12,20,10,18,50]),'Rekap per Regu');
       XLSX.utils.book_append_sheet(wb,sh(x.perTingkat,[16,10]),'Rekap per Tingkat');
       saveWb(wb,'Rekap_Prestasi_'+iso(new Date())+'.xlsx');toast(`Rekap diunduh (${x.total} prestasi)`)}
   }catch(e){toast('Gagal menyiapkan rekap. Coba lagi.','err')}
@@ -338,13 +343,28 @@ function renderPend(){
     return`<tr><td><span class="idl">${esc(x.no)}</span></td><td>${esc(x.n)}</td><td>${esc(x.kon)}</td><td>${b||'<span class="mu">—</span>'}${x.no==='Memproses…'?'':`<br><button class="btn sm" data-act="bukti" data-id="${esc(x.id)}">Bukti PDF</button>${x.em?` <button class="btn sm" data-act="kirimb" data-id="${esc(x.id)}">Email</button>`:''}`}</td><td><select data-act="setst" data-id="${esc(x.id)}" class="${STC[x.st]||''}" aria-label="Status ${esc(x.n)}">${ST.map(v=>`<option${v===x.st?' selected':''}>${v}</option>`).join('')}</select></td></tr>`}).join('')||'<tr><td colspan="5" class="mu">Belum ada pendaftar.</td></tr>';
   $('#pdp').innerHTML=pgb('pd',c,pages,L.length);
 }
+let reguAng=[]; // id siswa anggota regu pada formulir Catat Prestasi
+function aturPeserta(){ // tampilkan isian sesuai pilihan Perorangan / Regu
+  const f=$('#fr'),regu=f.elements.pe.value==='regu';
+  $('#frs').hidden=regu;f.elements.s.required=!regu;$('#frr').hidden=!regu;f.elements.rg.required=regu;
+  $('#agl').innerHTML=reguAng.map(i=>`<span class="chip">${esc(nm(i))}<small>${esc((S.map[i]||{}).kelas||'')}</small><button type="button" class="chipx" data-act="agdel" data-id="${esc(i)}" aria-label="Hapus ${esc(nm(i))} dari regu">×</button></span>`).join('')||'<small class="mu">Belum ada anggota</small>';
+}
+function tambahAnggotaRegu(){
+  const i=$('#fr').elements.ag,sid=S.lab[i.value];
+  if(!sid)return toast('Pilih anggota dari daftar saran','err');
+  if(reguAng.includes(sid))return toast('Siswa ini sudah menjadi anggota regu','err');
+  if(reguAng.length>=40)return toast('Maksimal 40 anggota per regu','err');
+  reguAng.push(sid);i.value='';aturPeserta();i.focus();
+}
 async function addPres(f){
-  const e=f.elements,s=S.lab[e.s.value];if(!s)return toast('Pilih siswa dari daftar saran','err');
-  const b=$('button',f);b.classList.add('load');let file=null;
+  const e=f.elements,regu=e.pe.value==='regu',s=regu?'':S.lab[e.s.value],nama=regu?e.rg.value.trim():'';
+  if(regu&&nama.length<2)return toast('Isi nama regu (minimal 2 huruf)','err');
+  if(!regu&&!s)return toast('Pilih siswa dari daftar saran','err');
+  const b=$('button.pri',f);b.classList.add('load');let file=null;
   try{file=await filePayload(e.f.files[0])}catch(x){b.classList.remove('load');return toast(x.message,'err')}
-  const r={id:uid(),siswa:s,jenis:e.k.value,tingkat:e.l.value,tanggal:e.t.value,penyelenggara:e.p.value,file};
-  S.d.pres.unshift({id:r.id,s,jn:r.jenis,tk:r.tingkat,tgl:r.tanggal,pen:r.penyelenggara,f:file?'pending':'',st:'terverifikasi',ca:'',o:'s'});
-  f.reset();fillForms();renderAll();b.classList.remove('load');toast(file?'Mengunggah sertifikat…':'Prestasi dicatat');
+  const r={id:uid(),siswa:s,peserta:regu?'regu':'',regu:nama,anggota:regu?[...reguAng]:[],jenis:e.k.value,tingkat:e.l.value,tanggal:e.t.value,penyelenggara:e.p.value,file};
+  S.d.pres.unshift({id:r.id,s,pe:r.peserta,rg:nama,ag:r.anggota,jn:r.jenis,tk:r.tingkat,tgl:r.tanggal,pen:r.penyelenggara,f:file?'pending':'',st:'terverifikasi',ca:'',o:'s'});
+  f.reset();reguAng=[];aturPeserta();fillForms();renderAll();b.classList.remove('load');toast(file?'Mengunggah sertifikat…':(regu?'Prestasi regu dicatat':'Prestasi dicatat'));
   if(file)send('savePrestasi',r,()=>{S.d.pres=S.d.pres.filter(p=>p.id!==r.id);renderAll()}); // berkas besar: kirim langsung
   else queue('savePrestasi',r); // tanpa berkas: masuk antrean luring (tersimpan di perangkat, dikirim otomatis saat online)
 }
@@ -559,7 +579,7 @@ function renderAnak(){
   <div class="card"><h3>Kehadiran Ekstrakurikuler</h3>${tb(['Ekskul','Hadir','Izin','Sakit','Alpa','Persentase'],o.hadir.map(h=>{const t=h.H+h.I+h.S+h.A;return`<tr><td>${esc(h.n)}</td><td>${h.H}</td><td>${h.I}</td><td>${h.S}</td><td>${h.A}</td><td>${t?Math.round(h.H*100/t):0}%</td></tr>`}))}</div>
   <div class="card"><div class="bar"><h3>Pelanggaran</h3><button class="btn" data-act="laportu">Cetak laporan pelanggaran &amp; keterlambatan</button></div>${tb(['Tanggal','Pelanggaran','Poin'],o.pel.map(x=>`<tr><td>${esc(x.tgl)} ${esc(x.jam)}</td><td>${esc(x.j)} ${katPill(x.k)}</td><td><span class="pill er">${x.p} Poin</span></td></tr>`))}</div>
   <div class="card"><h3>Keterlambatan</h3>${tb(['Tanggal','Jam datang','Alasan'],o.terl.map(x=>`<tr><td>${esc(x.tgl)}</td><td>${esc(x.jam)}</td><td>${esc(x.al)}</td></tr>`))}</div>
-  <div class="card"><div class="bar"><h3>Prestasi</h3><button class="btn" data-act="ppo">Laporkan Prestasi Anak</button></div>${presAnakForm()}${tb(['Tanggal','Prestasi','Tingkat','Penyelenggara','Status'],o.pres.map(x=>{const st=PST[x.st||'terverifikasi'];return`<tr><td>${esc(x.tgl)}</td><td>${esc(x.jn)}</td><td>${esc(x.tk)}</td><td>${esc(x.pen)}</td><td><span class="pill ${st[0]}">${st[1]}</span>${x.ca?`<small>${esc(x.ca)}</small>`:''}</td></tr>`}))}</div>`;
+  <div class="card"><div class="bar"><h3>Prestasi</h3><button class="btn" data-act="ppo">Laporkan Prestasi Anak</button></div>${presAnakForm()}${tb(['Tanggal','Prestasi','Tingkat','Penyelenggara','Status'],o.pres.map(x=>{const st=PST[x.st||'terverifikasi'];return`<tr><td>${esc(x.tgl)}</td><td>${esc(x.jn)}${x.rg?`<small><span class="pill in">${esc(labelRegu(x.rg))}</span></small>`:''}</td><td>${esc(x.tk)}</td><td>${esc(x.pen)}</td><td><span class="pill ${st[0]}">${st[1]}</span>${x.ca?`<small>${esc(x.ca)}</small>`:''}</td></tr>`}))}</div>`;
   $('#an-b').insertAdjacentHTML('beforeend',tahfidzAnak(o.tahfidz));
 }
 
@@ -840,7 +860,7 @@ async function hapusSis(btn){
     if(!r.success)toast(r.message,'err');
     else{const id=S.dx.id;$('#dm').close();
       S.d.siswa=S.d.siswa.filter(x=>x.id!==id);S.d.anggota=S.d.anggota.filter(a=>a.s!==id);
-      ['pel','terl'].forEach(k=>{if(S.d[k])S.d[k]=S.d[k].filter(x=>x.s!==id)});if(S.d.pres)S.d.pres=S.d.pres.filter(x=>x.s!==id);
+      ['pel','terl'].forEach(k=>{if(S.d[k])S.d[k]=S.d[k].filter(x=>x.s!==id)});if(S.d.pres){S.d.pres=S.d.pres.filter(x=>x.s!==id);S.d.pres.forEach(x=>{if(x.ag)x.ag=x.ag.filter(i=>i!==id)})}
       S.d.total--;reidx();renderAll();toast('Siswa dihapus');refresh()}
   }catch(e){toast('Gagal menghapus. Periksa koneksi lalu coba lagi.','err')}
   btn.classList.remove('load');
@@ -1435,6 +1455,7 @@ const A={
   sandiawal:e=>konfirmSandiAwal([e.dataset.id]),saresetsemua:()=>konfirmSandiAwal(S.d.users.filter(u=>['pembina','pelatih'].includes(u.r)&&u.id!==S.d.user.id).map(u=>u.id)),
   satamp:async e=>{const c=$('#sacur');if(c.dataset.on==='1'){c.value='••••••••';c.dataset.on='0';e.textContent='Tampilkan';return}e.classList.add('load');try{const r=await gs('getSandiAwal',S.t);if(r.success){c.value=r.data.ada?r.data.sandi:'(belum diatur)';c.dataset.on='1';e.textContent='Sembunyikan'}else toast(r.message,'err')}catch(x){toast(pesanGagal(x),'err')}e.classList.remove('load')},
   sasimpan:async e=>{const i=$('#sanew'),v=i.value.trim();if(v.length<8)return toast('Kata sandi awal minimal 8 karakter','err');e.classList.add('load');try{const r=await gs('setSandiAwal',S.t,{sandi:v});if(r.message==='SESI'){e.classList.remove('load');return out(1)}if(!r.success)toast(r.message,'err');else{i.value='';const c=$('#sacur');c.value='••••••••';c.dataset.on='0';$('#satamp').textContent='Tampilkan';S.saCek=1;$('#sawarn').hidden=true;toast('Kata sandi awal diperbarui. Berlaku untuk impor dan atur ulang berikutnya.')}}catch(x){toast(pesanGagal(x),'err')}e.classList.remove('load')},
+  agtambah:()=>tambahAnggotaRegu(),agdel:e=>{reguAng=reguAng.filter(i=>i!==e.dataset.id);aturPeserta()},
   jadwal:e=>bukaJadwal(e.dataset.id),jtutup:()=>{S.jp=null;$('#jpf').innerHTML=''},jdel:e=>hapusJadwal(e),jxl:()=>jadwalXl(),jcetak:()=>jadwalCetak(),pengganti:()=>penggantiTambah(),
   lapsiswa:e=>bukaLaporan(e.dataset.id,'',''),laportu:()=>lapOrtu(),lapcetak:()=>cetakLap(),lapxl:()=>lapXl(),laptutup:()=>$('#lm').close(),
   ekpilih:e=>bukaEk(e.dataset.id),eksimpan:simpanEk,ektutup:()=>$('#ekm').close(),rwpindah:e=>dlgPindah(e.dataset.id),
@@ -1475,6 +1496,7 @@ const A={
 document.addEventListener('click',ev=>{if(window.AndroidApp&&S.vf&&ev.target.closest('#vd')){ev.preventDefault();AndroidApp.saveFile(S.vf.data,S.vf.name,S.vf.mime);return}
   const e=ev.target.closest('[data-act]');if(e&&A[e.dataset.act]&&e.tagName!=='SELECT')A[e.dataset.act](e)});
 document.addEventListener('change',ev=>{const t=ev.target;
+  if(t.name==='pe'&&t.closest&&t.closest('#fr')){aturPeserta();return}
   if(t.dataset&&t.dataset.asal!==undefined&&S.jp){simpanAsal(t);return}
   if(t.id==='pd'&&S.ek&&isPetugas(S.ek)&&!S.ed&&t.value&&$('#pf').innerHTML){formPres({ekskul:S.ek,judul:'Form Presensi',tgl:t.value,ke:S.d.pertemuan.filter(x=>x.e===S.ek).length+1,materi:'',pelatih:false,rows:petugasRows(S.ek,t.value)});return}
   if(t.id==='ckall'){S.pageIds.forEach(i=>t.checked?S.sel.add(i):S.sel.delete(i));renderPel();return}
@@ -1506,13 +1528,14 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.name==='r'&&t.form&&t.form.getAttribute('id')==='fu'){t.form.elements.k.disabled=noEk(t.value)||!t.value;return}
   if(t.dataset.act==='rows'){S.n=+t.value;S.pg=1;renderPel()}
   else if(t.dataset.act==='setst'){const x=S.d.pend.find(p=>p.id===t.dataset.id);if(!x)return;x.st=t.value;renderPend();renderDash();queue('setStatusPendaftaran',{id:x.id,status:x.st});toast('Status diperbarui')}});
+document.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&ev.target.name==='ag'&&ev.target.closest&&ev.target.closest('#fr')){ev.preventDefault();tambahAnggotaRegu()}});
 document.addEventListener('submit',ev=>{ev.preventDefault();({lg:doLogin,fp:addPel,ft:addTer,fr:addPres,fd:addPend,fs:savSis,fu:savUsr,fg:savSet,fgs:gantiKirim,fls:laporanForm,fjd:tambahJadwal,fl:tampil,lo:doLoginOrtu,fe:savEks,fj:savJenis,fth:thRekap,fpo:ortuKirimPres})[ev.target.getAttribute('id')]?.(ev.target)});
 let dt;document.addEventListener('input',ev=>{if(ev.target.id==='qm'){clearTimeout(dt);const v=ev.target.value.trim();dt=setTimeout(()=>cari(v),400);return}if(ev.target.id==='qa'){clearTimeout(dt);const v=ev.target.value;dt=setTimeout(()=>{S.qk=v.trim().toLowerCase();refAng()},250);return}if(ev.target.type==='color'){document.documentElement.style.setProperty(ev.target.name==='a'?'--pri':'--side',ev.target.value);return}const k=ev.target.dataset.q;if(!k)return;clearTimeout(dt);const v=ev.target.value.trim().toLowerCase();dt=setTimeout(()=>{if(k==='q')S.sel.clear();if(k==='qp')S.psel.clear();S[k]=v;S.pg=1;S.pgx.pr=1;S.pgx.pd=1;S.pgx.sw=1;({dq:renderDash,q:renderPel,qp:renderPres,qd:renderPend,qs:renderSis})[k]()},120)});
 addEventListener('popstate',e=>{const p=e.state&&e.state.p;if(S.d&&p&&p!==S.p&&NAV.find(n=>n[0]===p&&navBoleh(n,{kesiswaan:3,pembina:4,pelatih:5,ortu:6,disiplin:7,tahfidz:8}[S.d.user.peran])))go(p,true)});
 addEventListener('online',flush);setInterval(flush,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.t&&Date.now()-S.last>60000&&!(ld('out')||[]).length)refresh()});
 /* ── Konfigurasi publik (mode login orang tua): tampil dari cache dulu, perbarui di latar. Sekaligus "membangunkan" server lebih awal ── */
-const APP_VERSI='2.3.2',APP_BUILD=12; // naikkan APP_BUILD bersama API_BUILD (Api.gs) tiap rilis
+const APP_VERSI='2.4.0',APP_BUILD=13; // naikkan APP_BUILD bersama API_BUILD (Api.gs) tiap rilis
 function cekVersi(d){ // memberi tahu bila server (Apps Script) dan tampilan (GitHub) tidak sepasang
   const sb=Number(d&&d.build)||0,bar=$('#verbar');let m='';
   if(sb<APP_BUILD)m=`Server belum diperbarui (server ${d&&d.versi?'v'+d.versi:'versi lama'}, aplikasi v${APP_VERSI}). Ganti Kode.gs dan Api.gs di Apps Script, lalu Deploy → Manage deployments → pensil → New version.`;
