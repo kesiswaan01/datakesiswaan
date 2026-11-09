@@ -171,7 +171,7 @@ function renderEks(){
   const d=S.d;
   $('#ekl').innerHTML=d.ekskul.map(e=>{const m=d.anggota.filter(a=>a.e===e.id).length,pt=d.pertemuan.filter(x=>x.e===e.id);let n=0,h=0;pt.forEach(x=>{n+=tot(x.c);h+=x.c.H});
     return `<div class="card ek"><h3>${esc(e.nama_ekskul)}</h3>${e.mode==='petugas'?'<span class="pill in">Kegiatan harian · kehadiran petugas</span> ':''}${e.mode==='petugas'?'<div><span class="pill in">Kegiatan harian · hanya kehadiran petugas</span></div>':''}<small>${esc(hariTxt(e))}, ${esc(e.jam)} · ${esc(e.lokasi)}</small><div class="ekm"><b>${m}</b> ${e.mode==='petugas'?'petugas':'siswa'} <span class="pill ok">${n?Math.round(h*100/n):0}% hadir</span></div>${e.mode==='petugas'?hariIni(e):''}<button class="btn pri w" data-act="pres" data-id="${esc(e.id)}">${e.mode==='petugas'?(pertemuanHariIni(e.id)?'Perbaiki Kehadiran Hari Ini':'Isi Kehadiran Hari Ini'):'Isi Kehadiran'}</button>${e.mode==='petugas'?`<button class="btn w" style="margin-top:8px" data-act="jadwal" data-id="${esc(e.id)}">Jadwal Petugas</button>`:''}${d.user.peran!=='kesiswaan'?`<button class="btn w" style="margin-top:8px" data-act="mem" data-id="${esc(e.id)}">Kelola Anggota</button>`:''}</div>`}).join('')||'<p class="mu">Belum ada ekskul untuk akun ini.</p>';
-  if(S.jp)renderJadwal();
+  if(S.jp){const f=document.activeElement;if(f&&f.closest&&f.closest('#jpf'))renderJadwalTabel();else renderJadwal()} // bila sedang mengetik di editor: perbarui tabel saja, jangan bangun ulang isian
   renderRiwayat();
 }
 function sum(){const c={hadir:0,izin:0,sakit:0,alpa:0};Object.values(S.att).forEach(v=>c[v]++);$('#ps').innerHTML=Object.keys(c).map(k=>`<span class="pill ${SC[k]}">${k[0].toUpperCase()+k.slice(1)}: ${c[k]}</span>`).join('')}
@@ -195,14 +195,14 @@ function fillForms(){
   const n=new Date();[$('#fp [name=t]'),$('#fp [name=j]'),$('#ft [name=j]'),$('#fr [name=t]')].forEach(i=>{if(i&&!i.value)i.value=i.type==='date'?iso(n):hm(n)});
 }
 function renderPel(){
-  const d=S.d;if(!d.pel)return;const pel=S.tab==='pel',adm=d.user.peran==='kesiswaan';
+  const d=S.d;if(!d.pel)return;const pel=S.tab==='pel',adm=d.user.peran==='kesiswaan',disp=d.user.peran==='disiplin',cdel=adm||disp,bisa=x=>adm||(disp&&!!x.u&&x.u===d.user.id); // Penegak Disiplin: hanya catatan yang ia catat sendiri
   $$('[data-act=tab]').forEach(b=>b.classList.toggle('on',b.dataset.v===S.tab));
-  $('#ph').innerHTML='<tr>'+(adm?'<th style="width:44px"><input type="checkbox" id="ckall" aria-label="Pilih semua baris di halaman ini"></th>':'')+'<th>ID</th><th>Siswa</th><th>Kelas</th><th>'+(pel?'Pelanggaran':'Alasan')+'</th><th>Waktu</th><th>Aksi</th></tr>';
-  const q=S.q;let L=(pel?d.pel:d.terl).map(x=>{const s=S.map[x.s]||{};return{rid:x.id,sid:x.s,id:sid(pel?'PLG':'TLB',x.id),n:s.nama||'-',nisn:s.nisn||'',k:s.kelas||'',e:pel?J(x.j).nama:x.al,kt:pel?(J(x.j).kat||''):'',p:pel?PN(x):0,w:x.tgl+' '+x.jam}});
+  $('#ph').innerHTML='<tr>'+(cdel?'<th style="width:44px"><input type="checkbox" id="ckall" aria-label="Pilih semua baris di halaman ini"></th>':'')+'<th>ID</th><th>Siswa</th><th>Kelas</th><th>'+(pel?'Pelanggaran':'Alasan')+'</th><th>Waktu</th><th>Aksi</th></tr>';
+  const q=S.q;let L=(pel?d.pel:d.terl).map(x=>{const s=S.map[x.s]||{};return{rid:x.id,sid:x.s,u:x.u,id:sid(pel?'PLG':'TLB',x.id),n:s.nama||'-',nisn:s.nisn||'',k:s.kelas||'',e:pel?J(x.j).nama:x.al,kt:pel?(J(x.j).kat||''):'',p:pel?PN(x):0,w:x.tgl+' '+x.jam}});
   if(q)L=L.filter(x=>(x.n+x.nisn+x.e+x.id).toLowerCase().includes(q));
   const pages=Math.max(1,Math.ceil(L.length/S.n));S.pg=Math.min(S.pg,pages);
-  const rows=L.slice((S.pg-1)*S.n,S.pg*S.n);S.pageIds=rows.map(x=>x.rid);S.allIds=L.map(x=>x.rid);
-  $('#pb').innerHTML=rows.map(x=>`<tr>${adm?`<td><input type="checkbox" data-ck="${esc(x.rid)}"${S.sel.has(x.rid)?' checked':''} aria-label="Pilih ${esc(x.id)}"></td>`:''}<td><span class="idl">${x.id}</span></td><td>${esc(x.n)}<small>NISN ${esc(x.nisn)}</small></td><td>${esc(x.k)}</td><td>${pel?katPill(x.kt)+' ':''}${esc(x.e)} ${pel?`<span class="pill er">${x.p} Poin</span>`:''}</td><td>${esc(x.w)}</td><td><button class="btn sm" data-act="lapsiswa" data-id="${esc(x.sid)}">Laporan</button>${adm?` <button class="btn sm dng" data-act="hdel" data-id="${esc(x.rid)}">Hapus</button>`:''}</td></tr>`).join('')||`<tr><td colspan="${adm?8:6}" class="mu">Tidak ada data.</td></tr>`;
+  const rows=L.slice((S.pg-1)*S.n,S.pg*S.n);S.pageIds=rows.filter(bisa).map(x=>x.rid);S.allIds=L.filter(bisa).map(x=>x.rid);
+  $('#pb').innerHTML=rows.map(x=>`<tr>${cdel?(bisa(x)?`<td><input type="checkbox" data-ck="${esc(x.rid)}"${S.sel.has(x.rid)?' checked':''} aria-label="Pilih ${esc(x.id)}"></td>`:'<td></td>'):''}<td><span class="idl">${x.id}</span></td><td>${esc(x.n)}<small>NISN ${esc(x.nisn)}</small></td><td>${esc(x.k)}</td><td>${pel?katPill(x.kt)+' ':''}${esc(x.e)} ${pel?`<span class="pill er">${x.p} Poin</span>`:''}</td><td>${esc(x.w)}</td><td><button class="btn sm" data-act="lapsiswa" data-id="${esc(x.sid)}">Laporan</button>${bisa(x)?` <button class="btn sm dng" data-act="hdel" data-id="${esc(x.rid)}">Hapus</button>`:''}</td></tr>`).join('')||`<tr><td colspan="${cdel?8:6}" class="mu">Tidak ada data.</td></tr>`;
   const pg=[];for(let i=Math.max(1,S.pg-2);i<=Math.min(pages,S.pg+2);i++)pg.push(`<button data-act="page" data-k="pel" data-v="${i}" class="${i===S.pg?'on':''}" aria-label="Halaman ${i}">${i}</button>`);
   $('#pgr').innerHTML=`<small>Menampilkan ${L.length?(S.pg-1)*S.n+1:0}–${Math.min(L.length,S.pg*S.n)} dari ${L.length}</small><div>${pg.join('')}</div><select data-act="rows" aria-label="Baris per halaman">${[5,10,25,50].map(v=>`<option ${v===S.n?'selected':''}>${v}</option>`).join('')}</select>`;
   hBar();
@@ -212,13 +212,13 @@ function renderPel(){
 function addPel(f){
   const s=S.lab[f.elements.s.value];if(!s)return toast('Pilih siswa dari daftar saran','err');
   const e=f.elements,r={id:uid(),siswa:s,jenis:e.k.value,tanggal:e.t.value,jam:e.j.value,catatan:e.c.value};
-  S.d.pel.unshift({id:r.id,s,j:r.jenis,tgl:r.tanggal,jam:r.jam,cat:r.catatan,pn:J(r.jenis).poin});
+  S.d.pel.unshift({id:r.id,s,j:r.jenis,tgl:r.tanggal,jam:r.jam,cat:r.catatan,u:S.d.user.id,pn:J(r.jenis).poin});
   e.s.value='';e.c.value='';renderAll();toast('Pelanggaran dicatat');queue('savePelanggaran',r);
 }
 function addTer(f){
   const e=f.elements,s=S.lab[e.s.value];if(!s)return toast('Pilih siswa dari daftar saran','err');
   const r={id:uid(),siswa:s,tanggal:iso(new Date()),jam:e.j.value,alasan:e.a.value};
-  S.d.terl.unshift({id:r.id,s,tgl:r.tanggal,jam:r.jam,al:r.alasan});
+  S.d.terl.unshift({id:r.id,s,tgl:r.tanggal,jam:r.jam,al:r.alasan,u:S.d.user.id});
   e.s.value='';e.j.value=hm(new Date());renderAll();toast('Keterlambatan dicatat');queue('saveTerlambat',r);
 }
 
@@ -596,7 +596,7 @@ const urutNama=(a,b)=>String(a.nama).localeCompare(String(b.nama));
 const adaJadwal=ek=>(S.d.jadwal||[]).some(j=>j.e===ek);
 const jadwalHari=(ek,h)=>(S.d.jadwal||[]).filter(j=>j.e===ek&&j.h===h).map(j=>S.map[j.s]).filter(Boolean).sort(urutNama);
 function asalTxt(id){ // ekskul biasa yang diikuti siswa: dari server, atau dihitung dari keanggotaan bila belum ada
-  const a=(S.d.asal||{})[id];if(a!==undefined)return a;
+  const a=(S.d.asal||{})[id];if(a)return a; // isian manual atau hitungan server
   return S.d.ekskul.filter(e=>e.mode!=='petugas'&&S.d.anggota.some(x=>x.e===e.id&&x.s===id)).map(e=>e.nama_ekskul).join(', ');
 }
 function petugasRows(ek,tg){ // daftar kehadiran = petugas yang dijadwalkan pada hari dari tanggal itu (bila jadwal belum disusun: semua anggota)
@@ -706,7 +706,7 @@ function formPres(o){
   <div class="fg"><label>Tanggal<input type="date" id="pd" value="${esc(o.tgl)}"></label>${e.mode==='petugas'?`<input type="hidden" id="pk" value="${esc(o.ke)}"><input type="hidden" id="pm" value=""><input type="checkbox" id="pp" hidden><p class="mu" style="align-self:end;margin:0">Kegiatan harian: catat kehadiran petugas saja. ${adaJadwal(e.id)?`Hari <b>${esc(hr)}</b>: ${o.rows.filter(r=>!r.pengganti).length} petugas terjadwal.`:`Jadwal petugas belum disusun, daftar memuat semua anggota. <button type=\"button\" class=\"btn sm\" data-act=\"jadwal\" data-id=\"${esc(e.id)}\">Susun jadwal</button>`}</p>`:`<label>Pertemuan ke<input type="number" id="pk" min="1" value="${esc(o.ke)}"></label><label>Materi / agenda<input id="pm" maxlength="150" value="${esc(o.materi||'')}"></label><label class="chk"><input type="checkbox" id="pp"${o.pelatih?' checked':''}>Pelatih hadir</label>`}</div>
   <div class="bar" style="margin-top:12px"><b>${e.mode==='petugas'?'Kehadiran Petugas':'Daftar Kehadiran'} (${o.rows.length})</b>${o.id?'':'<button class="btn" data-act="markall">Tandai semua hadir</button>'}</div>
   ${pt&&pool.length?`<div class="bar" style="margin:8px 0"><select id="pgn" aria-label="Petugas pengganti"><option value="">Tambah petugas pengganti…</option>${pool.map(m=>`<option value="${esc(m.id)}">${esc(m.nama)} (${esc(m.kelas)})</option>`).join('')}</select><button type="button" class="btn" data-act="pengganti">Tambahkan</button></div>`:''}
-  <div class="tw"><table><thead><tr><th>No</th><th>${pt?'Petugas':'Siswa'}</th><th>Kelas</th>${pt?'<th>Asal ekskul</th>':''}<th>Status</th><th>Catatan</th></tr></thead><tbody>${o.rows.map((m,i)=>`<tr data-s="${esc(m.id)}"><td>${i+1}</td><td>${esc(m.nama)}<small>NISN ${esc(m.nisn)}</small></td><td>${esc(m.kelas)}</td>${pt?`<td class="asal">${asalM(m)?esc(asalM(m)):'<span class="mu">Tanpa ekskul lain</span>'}</td>`:''}<td><div class="seg">${['hadir','izin','sakit','alpa'].map(v=>`<button type="button" data-act="mark" data-v="${v}" class="${v}${(m.st||'hadir')===v?' on':''}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></td><td><input data-n maxlength="100" value="${esc(m.n||'')}" aria-label="Catatan ${esc(m.nama)}"></td></tr>`).join('')}</tbody></table></div>
+  <div class="tw"><table><thead><tr><th>No</th><th>${pt?'Petugas':'Siswa'}</th><th>Kelas</th>${pt?'<th>Asal ekskul</th>':''}<th>Status</th><th>Catatan</th></tr></thead><tbody>${o.rows.map((m,i)=>`<tr data-s="${esc(m.id)}"><td>${i+1}</td><td>${esc(m.nama)}<small>NISN ${esc(m.nisn)}</small></td><td>${esc(m.kelas)}</td>${pt?`<td class="asal">${asalM(m)?esc(asalM(m)):'<span class="mu">Belum diisi</span>'}</td>`:''}<td><div class="seg">${['hadir','izin','sakit','alpa'].map(v=>`<button type="button" data-act="mark" data-v="${v}" class="${v}${(m.st||'hadir')===v?' on':''}">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}</div></td><td><input data-n maxlength="100" value="${esc(m.n||'')}" aria-label="Catatan ${esc(m.nama)}"></td></tr>`).join('')}</tbody></table></div>
   ${o.rows.length?'':`<p class="mu" role="status">${pt?'Belum ada petugas yang dijadwalkan pada hari '+esc(hr)+'. Atur jadwal, atau tambahkan petugas pengganti.':'Belum ada anggota.'}</p>`}
   <div id="ps" class="sum"></div><button class="btn pri" data-act="savepres">${o.id?'Simpan Perbaikan':'Simpan Kehadiran'}</button></div>`;
   sum();$('#pf').scrollIntoView({behavior:'smooth',block:'start'});
@@ -1038,10 +1038,10 @@ function savJenis(f){
 
 /* ── Hapus catatan pelanggaran/keterlambatan (Kesiswaan): per baris atau beberapa sekaligus lewat kotak centang ── */
 function hBar(){
-  const b=$('#hbar');if(!b)return;const adm=S.d.user.peran==='kesiswaan';
-  if(!adm){b.hidden=true;return}
+  const b=$('#hbar');if(!b)return;const adm=S.d.user.peran==='kesiswaan',disp=S.d.user.peran==='disiplin';
+  if(!adm&&!disp){b.hidden=true;return}
   b.hidden=false;const n=S.sel.size;
-  b.innerHTML=`<small>${n?`<b>${n} dipilih</b>`:'Centang baris untuk menghapus beberapa catatan sekaligus'}</small><div><button class="btn sm" data-act="hsemua">Pilih semua hasil (${S.allIds.length})</button>${n?` <button class="btn sm" data-act="hbatal">Batal pilih</button> <button class="btn sm dng" data-act="hdelsel">Hapus ${n} yang dipilih</button>`:''}</div>`;
+  b.innerHTML=`<small>${n?`<b>${n} dipilih</b>`:disp?'Anda dapat menghapus catatan yang Anda catat sendiri jika keliru (centang barisnya)':'Centang baris untuk menghapus beberapa catatan sekaligus'}</small><div><button class="btn sm" data-act="hsemua">${disp?'Pilih semua catatan saya':'Pilih semua hasil'} (${S.allIds.length})</button>${n?` <button class="btn sm" data-act="hbatal">Batal pilih</button> <button class="btn sm dng" data-act="hdelsel">Hapus ${n} yang dipilih</button>`:''}</div>`;
   const c=$('#ckall');if(c)c.checked=S.pageIds.length>0&&S.pageIds.every(i=>S.sel.has(i));
 }
 function confirmHapusCat(ids){
@@ -1052,7 +1052,7 @@ function confirmHapusCat(ids){
   $('#dt').textContent=pel?'Hapus catatan pelanggaran':'Hapus catatan keterlambatan';
   $('#db').innerHTML=`<p>Hapus <b>${rec.length} catatan ${pel?'pelanggaran':'keterlambatan'}</b> milik ${sis} siswa?</p><ul>${rec.slice(0,5).map(x=>`<li>${esc(nm(x.s))} — ${esc(pel?J(x.j).nama:x.al)} (${esc(x.tgl)})</li>`).join('')}${rec.length>5?`<li>…dan ${rec.length-5} lainnya</li>`:''}</ul>`
     +(pel?`<p>Poin yang ikut hilang: <b>${poin}</b>. Akumulasi poin siswa akan berkurang.</p>`:'')
-    +`<p class="mu">Tindakan ini tidak bisa dibatalkan. Jika hanya salah input, ini cara yang tepat; untuk jenis yang tidak dipakai lagi, nonaktifkan jenisnya di menu Jenis Pelanggaran.</p>`
+    +(S.d.user.peran==='disiplin'?`<p class="mu">Tindakan ini tidak bisa dibatalkan dan <b>tercatat di log audit atas nama Anda</b>. Gunakan hanya untuk catatan yang keliru.</p>`:`<p class="mu">Tindakan ini tidak bisa dibatalkan. Jika hanya salah input, ini cara yang tepat; untuk jenis yang tidak dipakai lagi, nonaktifkan jenisnya di menu Jenis Pelanggaran.</p>`)
     +(rec.length>1?`<label class="chk" style="height:auto;margin:8px 0 0"><input type="checkbox" id="dc">Saya mengerti, hapus semua catatan ini</label>`:'');
   $('#dok').disabled=rec.length>1;$('#dm').showModal();
 }
@@ -1331,17 +1331,37 @@ function hariKegiatan(e){return String(e.hari||'').split(',').map(x=>x.trim()).f
 function renderJadwal(){
   const box=$('#jpf'),id=S.jp,e=id&&S.d.ekskul.find(x=>x.id===id);
   if(!e){box.innerHTML='';return}
-  const hr=hariKegiatan(e),tp=new Set((S.d.jadwal||[]).filter(j=>j.e===id).map(j=>j.s)).size;
+  const hr=hariKegiatan(e),ek=S.d.ekskul.filter(x=>x.mode!=='petugas').map(x=>x.nama_ekskul);
   box.innerHTML=`<div class="card"><div class="ph"><h3>Jadwal Petugas — ${esc(e.nama_ekskul)}</h3><div class="bar"><button class="btn" id="jcetak" data-act="jcetak">Cetak</button><button class="btn" data-act="jxl">Unduh Excel</button><button class="btn" data-act="jtutup">Tutup</button></div></div>
+  <datalist id="dlek">${ek.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
   <form id="fjd" class="fg4"><label>Petugas<input name="s" list="dl" required placeholder="Ketik nama / NISN"></label>
+    <label>Asal ekskul (boleh dikosongkan)<input name="a" list="dlek" maxlength="60" placeholder="mis. Pramuka" autocomplete="off"></label>
     <fieldset class="days"><legend>Bertugas pada hari</legend>${hr.map(h=>`<label class="chk"><input type="checkbox" name="jh" value="${esc(h)}">${esc(h)}</label>`).join('')}</fieldset>
     <button class="btn pri">Tambahkan ke Jadwal</button></form>
-  <p class="mu">${tp} petugas terjadwal. Petugas yang dijadwalkan otomatis menjadi anggota kegiatan, dan boleh bertugas di beberapa hari.</p>
-  <div class="tw"><table><thead><tr><th>Hari</th><th>Petugas yang bertugas</th></tr></thead><tbody>${hr.map(h=>{const ms=jadwalHari(id,h);return `<tr><td><b>${esc(h)}</b><small>${ms.length} petugas</small></td><td>${ms.map(m=>`<span class="chip">${esc(m.nama)}<small>${esc(m.kelas)}${asalTxt(m.id)?' · '+esc(asalTxt(m.id)):''}</small><button type="button" class="chipx" data-act="jdel" data-h="${esc(h)}" data-id="${esc(m.id)}" aria-label="Hapus ${esc(m.nama)} dari hari ${esc(h)}">×</button></span>`).join('')||'<span class="mu">Belum ada petugas</span>'}</td></tr>`}).join('')}</tbody></table></div></div>`;
-  $('#jcetak').hidden=!!window.AndroidApp;
+  <div id="jtab"></div>
+  <div id="jasal"></div></div>`;
+  renderJadwalTabel();renderAsalPetugas();$('#jcetak').hidden=!!window.AndroidApp;
+}
+function petugasKegiatan(id){return S.d.anggota.filter(a=>a.e===id).map(a=>S.map[a.s]).filter(Boolean).sort(urutNama)}
+function renderJadwalTabel(){
+  const box=$('#jtab'),id=S.jp,e=id&&S.d.ekskul.find(x=>x.id===id);if(!box||!e)return;
+  const hr=hariKegiatan(e),tp=new Set((S.d.jadwal||[]).filter(j=>j.e===id).map(j=>j.s)),kosong=[...tp].filter(i=>S.map[i]&&!asalTxt(i)).length;
+  box.innerHTML=`<p class="mu">${tp.size} petugas terjadwal. Petugas yang dijadwalkan otomatis menjadi anggota kegiatan, dan boleh bertugas di beberapa hari.${kosong?` <b>${kosong} petugas belum punya keterangan asal ekskul</b>: isi pada bagian <i>Asal ekskul petugas</i> di bawah.`:''}</p>
+  <div class="tw"><table><thead><tr><th>Hari</th><th>Petugas yang bertugas</th></tr></thead><tbody>${hr.map(h=>{const ms=jadwalHari(id,h);return `<tr><td><b>${esc(h)}</b><small>${ms.length} petugas</small></td><td>${ms.map(m=>`<span class="chip">${esc(m.nama)}<small>${esc(m.kelas)} · ${asalTxt(m.id)?esc(asalTxt(m.id)):'<span class="mu">asal ekskul belum diisi</span>'}</small><button type="button" class="chipx" data-act="jdel" data-h="${esc(h)}" data-id="${esc(m.id)}" aria-label="Hapus ${esc(m.nama)} dari hari ${esc(h)}">×</button></span>`).join('')||'<span class="mu">Belum ada petugas</span>'}</td></tr>`}).join('')}</tbody></table></div>`;
+}
+function renderAsalPetugas(){ // isian asal ekskul tiap petugas; tersimpan otomatis saat kolom ditinggalkan
+  const box=$('#jasal'),id=S.jp;if(!box||!id)return;const ps=petugasKegiatan(id);
+  box.innerHTML=ps.length?`<h4 style="margin:16px 0 4px">Asal ekskul petugas</h4><p class="mu" style="margin:0 0 6px">Terisi otomatis dari keanggotaan ekskul lain. Bila kosong atau keliru, ketik sendiri (mis. Pramuka, PMR, Paskibra); kosongkan untuk kembali ke otomatis. Tersimpan saat Anda pindah dari kolom.</p>
+  <div class="tw"><table><thead><tr><th>Petugas</th><th>Asal ekskul</th></tr></thead><tbody>${ps.map(m=>`<tr><td>${esc(m.nama)}<small>${esc(m.kelas)}</small></td><td><input data-asal="${esc(m.id)}" list="dlek" maxlength="60" value="${esc(asalTxt(m.id))}" placeholder="Isi asal ekskul" autocomplete="off" aria-label="Asal ekskul ${esc(m.nama)}"></td></tr>`).join('')}</tbody></table></div>`:'';
+}
+function simpanAsal(inp){
+  const id=S.jp,sid=inp.dataset.asal,val=inp.value.trim().slice(0,60);S.d.asal=S.d.asal||{};
+  if((S.d.asal[sid]||'')===val)return;
+  const lama=S.d.asal[sid];S.d.asal[sid]=val;renderJadwalTabel();
+  send('saveAsalPetugas',{ekskul:id,baris:[{s:sid,a:val}]},()=>{S.d.asal[sid]=lama;renderJadwal()});
 }
 function tambahJadwal(f){
-  const id=S.jp,e=f.elements,sid=S.lab[e.s.value],hr=$$('input[name=jh]:checked',f).map(i=>i.value),adm=S.d.user.peran==='kesiswaan';
+  const id=S.jp,e=f.elements,sid=S.lab[e.s.value],hr=$$('input[name=jh]:checked',f).map(i=>i.value),adm=S.d.user.peran==='kesiswaan',as=e.a.value.trim().slice(0,60);
   if(!sid)return toast('Pilih petugas dari daftar saran','err');
   if(!hr.length)return toast('Pilih minimal satu hari','err');
   const anggota=S.d.anggota.some(a=>a.e===id&&a.s===sid);
@@ -1350,8 +1370,9 @@ function tambahJadwal(f){
   const tam=hr.filter(h=>!S.d.jadwal.some(j=>j.e===id&&j.h===h&&j.s===sid)).map(h=>({h,s:sid}));
   if(!tam.length)return toast('Petugas ini sudah terjadwal pada hari yang dipilih','err');
   tam.forEach(x=>S.d.jadwal.push({e:id,h:x.h,s:x.s}));if(!anggota)S.d.anggota.push({e:id,s:sid});
+  S.d.asal=S.d.asal||{};if(as)S.d.asal[sid]=as;
   f.reset();renderEks();
-  send('saveJadwalPetugas',{ekskul:id,tambah:tam,hapus:[]},()=>{S.d.jadwal=S.d.jadwal.filter(j=>!(j.e===id&&tam.some(x=>x.h===j.h&&x.s===j.s)));if(!anggota)S.d.anggota=S.d.anggota.filter(a=>!(a.e===id&&a.s===sid));renderEks()});
+  send('saveJadwalPetugas',{ekskul:id,tambah:tam,hapus:[],asal:as?[{s:sid,a:as}]:[]},()=>{S.d.jadwal=S.d.jadwal.filter(j=>!(j.e===id&&tam.some(x=>x.h===j.h&&x.s===j.s)));if(!anggota)S.d.anggota=S.d.anggota.filter(a=>!(a.e===id&&a.s===sid));renderEks()});
 }
 function hapusJadwal(btn){
   const id=S.jp,h=btn.dataset.h,sid=btn.dataset.id,lama=S.d.jadwal.slice();
@@ -1454,6 +1475,7 @@ const A={
 document.addEventListener('click',ev=>{if(window.AndroidApp&&S.vf&&ev.target.closest('#vd')){ev.preventDefault();AndroidApp.saveFile(S.vf.data,S.vf.name,S.vf.mime);return}
   const e=ev.target.closest('[data-act]');if(e&&A[e.dataset.act]&&e.tagName!=='SELECT')A[e.dataset.act](e)});
 document.addEventListener('change',ev=>{const t=ev.target;
+  if(t.dataset&&t.dataset.asal!==undefined&&S.jp){simpanAsal(t);return}
   if(t.id==='pd'&&S.ek&&isPetugas(S.ek)&&!S.ed&&t.value&&$('#pf').innerHTML){formPres({ekskul:S.ek,judul:'Form Presensi',tgl:t.value,ke:S.d.pertemuan.filter(x=>x.e===S.ek).length+1,materi:'',pelatih:false,rows:petugasRows(S.ek,t.value)});return}
   if(t.id==='ckall'){S.pageIds.forEach(i=>t.checked?S.sel.add(i):S.sel.delete(i));renderPel();return}
   if(t.dataset.ck){t.checked?S.sel.add(t.dataset.ck):S.sel.delete(t.dataset.ck);hBar();return}
@@ -1490,7 +1512,7 @@ addEventListener('popstate',e=>{const p=e.state&&e.state.p;if(S.d&&p&&p!==S.p&&N
 addEventListener('online',flush);setInterval(flush,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.t&&Date.now()-S.last>60000&&!(ld('out')||[]).length)refresh()});
 /* ── Konfigurasi publik (mode login orang tua): tampil dari cache dulu, perbarui di latar. Sekaligus "membangunkan" server lebih awal ── */
-const APP_VERSI='2.3.0',APP_BUILD=10; // naikkan APP_BUILD bersama API_BUILD (Api.gs) tiap rilis
+const APP_VERSI='2.3.2',APP_BUILD=12; // naikkan APP_BUILD bersama API_BUILD (Api.gs) tiap rilis
 function cekVersi(d){ // memberi tahu bila server (Apps Script) dan tampilan (GitHub) tidak sepasang
   const sb=Number(d&&d.build)||0,bar=$('#verbar');let m='';
   if(sb<APP_BUILD)m=`Server belum diperbarui (server ${d&&d.versi?'v'+d.versi:'versi lama'}, aplikasi v${APP_VERSI}). Ganti Kode.gs dan Api.gs di Apps Script, lalu Deploy → Manage deployments → pensil → New version.`;
