@@ -964,6 +964,17 @@ function nImpor(file){
 }
 
 /* ── Impor akun dari Excel: hanya Nama Lengkap & Nama Pengguna. Peran/ekskul dipilih sesudahnya di tabel; kata sandi awal sama untuk semua (dari server) ── */
+function uTemplatData(){ // templat yang sudah berisi akun yang ada (tanpa kata sandi); dua kolom pertama sama dengan templat impor
+  if(!window.XLSX)return toast('Pustaka Excel belum termuat. Tunggu sebentar lalu coba lagi.','err');
+  const RN={kesiswaan:'Kesiswaan (admin)',pembina:'Pembina',pelatih:'Pelatih',disiplin:'Penegak Disiplin',tahfidz:'Guru Tahfidz'},ord=['kesiswaan','pembina','pelatih','disiplin','tahfidz',''];
+  const U=[...(S.d.users||[])].sort((a,b)=>ord.indexOf(a.r||'')-ord.indexOf(b.r||'')||String(a.nm).localeCompare(String(b.nm)));
+  if(!U.length)return toast('Belum ada akun untuk diunduh','err');
+  const rows=U.map(u=>[u.nm,u.u,RN[u.r]||'(belum ada peran)',u.r==='kesiswaan'?'Semua ekskul':(['pembina','pelatih'].includes(u.r)?ekNamaPenuh(u.ek):''),u.a?'Aktif':'Nonaktif',[u.wg?'Wajib ganti sandi':'',u.id===S.d.user.id?'Akun Anda':''].filter(Boolean).join('; ')]);
+  const ws=XLSX.utils.aoa_to_sheet([['Data Akun Pembina & Pelatih'],['Petunjuk','Berisi '+U.length+' akun yang sudah ada (kata sandi TIDAK disertakan). Untuk menambah akun, tambahkan baris di bawah daftar berisi Nama Lengkap dan Nama Pengguna (3–30 huruf kecil/angka/titik/strip, tanpa spasi), simpan, lalu Impor Excel: akun yang sudah ada otomatis dilewati. Kolom Peran, Ekskul, Status, dan Catatan hanya informasi dan diabaikan saat impor; ubah peran dan ekskul di tabel akun.'],['Diunduh',iso(new Date())+' '+hm(new Date())+' oleh '+S.d.user.nama],[],['Nama Lengkap','Nama Pengguna','Peran','Ekskul','Status','Catatan'],...rows]);
+  ws['!cols']=[{wch:32},{wch:24},{wch:20},{wch:34},{wch:11},{wch:30}];ws['!autofilter']={ref:'A5:F'+(5+rows.length)};
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Akun');
+  saveWb(wb,'Data_Akun_Pembina_Pelatih_'+iso(new Date())+'.xlsx');toast('Templat berisi '+U.length+' akun diunduh');
+}
 function uTemplat(){
   if(!window.XLSX)return toast('Pustaka Excel belum termuat. Tunggu sebentar lalu coba lagi.','err');
   const ws=XLSX.utils.aoa_to_sheet([['Impor Akun Pembina & Pelatih'],['Petunjuk','Isi Nama Lengkap dan Nama Pengguna (3–30 huruf kecil/angka/titik/strip, tanpa spasi). Peran dan ekskul dipilih sesudah diimpor, di tabel akun. Kata sandi awal sama untuk semua akun dan ditampilkan setelah impor. Nama pengguna yang sudah ada akan dilewati.'],[],['Nama Lengkap','Nama Pengguna']]);
@@ -988,32 +999,33 @@ function uImpor(file){
     A.slice(hi+1).forEach((r,i)=>{ // kolom lain (peran, ekskul, kata sandi) sengaja diabaikan
       const cell=k=>String(r[k]==null?'':r[k]).trim(),it={baris:hi+2+i,nm:cell(ci.nm),u:cell(ci.u).toLowerCase()};
       if(!it.nm&&!it.u)return;
-      it.err=!it.nm?'Nama lengkap kosong':!/^[a-z0-9._-]{3,30}$/.test(it.u)?'Nama pengguna tidak valid':(have.has(it.u)||seen.has(it.u))?'Nama pengguna sudah dipakai':'';
-      if(!it.err)seen.add(it.u);items.push(it);
+      it.ada=have.has(it.u)&&!!it.nm; // sudah terdaftar (mis. dari Templat + Data Akun): dilewati tanpa dianggap salah
+      it.err=it.ada?'':!it.nm?'Nama lengkap kosong':!/^[a-z0-9._-]{3,30}$/.test(it.u)?'Nama pengguna tidak valid':seen.has(it.u)?'Nama pengguna ganda di berkas':have.has(it.u)?'Nama pengguna sudah dipakai':'';
+      if(!it.err&&!it.ada)seen.add(it.u);items.push(it);
     });
     if(!items.length)return toast('Tidak ada baris data yang terbaca','err');
-    if(items.length>200)return toast('Maksimal 200 akun sekali impor','err');
+    if(items.filter(x=>!x.ada).length>200)return toast('Maksimal 200 akun baru sekali impor','err');
     S.uprev=items;S.ares=null;renderUPrev();
   };
   rd.readAsArrayBuffer(file);
 }
 function renderUPrev(){
-  const it=S.uprev,ok=it.filter(x=>!x.err),box=$('#uimpbox'),bad=it.length-ok.length;
+  const it=S.uprev,ok=it.filter(x=>!x.err&&!x.ada),box=$('#uimpbox'),ada=it.filter(x=>x.ada).length,bad=it.length-ok.length-ada;
   box.innerHTML=`<div class="card"><div class="ph"><h3>Pratinjau impor akun</h3><button class="btn" data-act="ututup">Batal</button></div>
-  <p><span class="pill ok">${ok.length} siap diimpor</span> <span class="pill ${bad?'er':''}" style="${bad?'':'background:var(--th);color:var(--mu)'}">${bad} bermasalah (dilewati)</span></p>
-  <div class="tw"><table><thead><tr><th>Baris</th><th>Nama lengkap</th><th>Nama pengguna</th><th>Status</th></tr></thead><tbody>${it.map(x=>`<tr><td>${x.baris}</td><td>${esc(x.nm)}</td><td>${esc(x.u)}</td><td>${x.err?`<span class="pill er">${esc(x.err)}</span>`:'<span class="pill ok">Siap</span>'}</td></tr>`).join('')}</tbody></table></div>
+  <p><span class="pill ok">${ok.length} siap diimpor</span> ${ada?`<span class="pill" style="background:var(--th);color:var(--mu)">${ada} sudah terdaftar (dilewati)</span> `:''}<span class="pill ${bad?'er':''}" style="${bad?'':'background:var(--th);color:var(--mu)'}">${bad} bermasalah (dilewati)</span></p>
+  <div class="tw"><table><thead><tr><th>Baris</th><th>Nama lengkap</th><th>Nama pengguna</th><th>Status</th></tr></thead><tbody>${it.map(x=>`<tr><td>${x.baris}</td><td>${esc(x.nm)}</td><td>${esc(x.u)}</td><td>${x.ada?'<span class="pill" style="background:var(--th);color:var(--mu)">Sudah terdaftar</span>':x.err?`<span class="pill er">${esc(x.err)}</span>`:'<span class="pill ok">Siap</span>'}</td></tr>`).join('')}</tbody></table></div>
   <p class="mu">Akun baru dibuat <b>tanpa peran</b> dan belum bisa masuk sampai Anda memilih peran (dan ekskul) di tabel akun. Kata sandi awal sama untuk semua akun dan ditampilkan setelah impor.</p>
   <button class="btn pri" data-act="ukirim"${ok.length?'':' disabled'}>Impor ${ok.length} akun</button></div>`;
   box.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function uKirim(btn){
-  const rows=S.uprev.filter(x=>!x.err).map(x=>({baris:x.baris,nm:x.nm,u:x.u}));
+  const rows=S.uprev.filter(x=>!x.err&&!x.ada).map(x=>({baris:x.baris,nm:x.nm,u:x.u}));
   if(!rows.length)return;btn.classList.add('load');
   try{const r=await gs('importAkun',S.t,rows);
     if(r.message==='SESI'){btn.classList.remove('load');return out(1)}
     if(!r.success){toast(r.message,'err');arahkanSandiAwal(r.message)}
     else{
-      S.ares=S.uprev.map(x=>{if(x.err)return{...x,status:'dilewati',alasan:x.err};const h=r.data.hasil.find(z=>z.baris===x.baris)||{};return{...x,status:h.status||'dilewati',alasan:h.alasan||''}});
+      S.ares=S.uprev.map(x=>{if(x.ada)return{...x,status:'dilewati',alasan:'Sudah terdaftar'};if(x.err)return{...x,status:'dilewati',alasan:x.err};const h=r.data.hasil.find(z=>z.baris===x.baris)||{};return{...x,status:h.status||'dilewati',alasan:h.alasan||''}});
       S.asandi=r.data.sandi;S.uprev=null;renderUHasil(r.data.tambah);refresh();
     }
   }catch(e){toast('Gagal mengirim. Periksa koneksi lalu coba lagi.','err')}
@@ -1433,7 +1445,7 @@ const A={
   lt:e=>{$('#lg').hidden=e.dataset.v==='o';$('#lo').hidden=e.dataset.v!=='o'},
   bukti:e=>bukti(e.dataset.id,false,e),
   jtpl:jTemplat,jimp:()=>$('#jfile').click(),jkirim:e=>jKirim(e),jtutup:()=>{S.jprev=null;$('#jimpbox').innerHTML=''},
-  utpl:uTemplat,uimp:()=>$('#ufile').click(),ukirim:e=>uKirim(e),uhxl:uHasilXl,ututup:()=>{S.uprev=null;S.ares=null;$('#uimpbox').innerHTML=''},
+  utpl:uTemplat,uxl:uTemplatData,uimp:()=>$('#ufile').click(),ukirim:e=>uKirim(e),uhxl:uHasilXl,ututup:()=>{S.uprev=null;S.ares=null;$('#uimpbox').innerHTML=''},
   jbaru:()=>{const f=$('#fj');f.reset();f.elements.id.value='';$('#fjt').textContent='Tambah Jenis Pelanggaran';$('#jw').hidden=true;f.hidden=false;f.scrollIntoView({behavior:'smooth'})},
   jbatal:()=>{$('#fj').hidden=true},
   jedit:e=>{const j=S.d.jenis.find(x=>x.id===e.dataset.id),f=$('#fj'),m=f.elements;if(!j)return;m.id.value=j.id;m.n.value=j.nama;m.k.value=KATS.includes(j.kat)?j.kat:'';m.p.value=j.poin;$('#fjt').textContent='Ubah Jenis Pelanggaran';$('#jw').hidden=false;f.hidden=false;f.scrollIntoView({behavior:'smooth'})},
@@ -1535,7 +1547,7 @@ addEventListener('popstate',e=>{const p=e.state&&e.state.p;if(S.d&&p&&p!==S.p&&N
 addEventListener('online',flush);setInterval(flush,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.t&&Date.now()-S.last>60000&&!(ld('out')||[]).length)refresh()});
 /* ── Konfigurasi publik (mode login orang tua): tampil dari cache dulu, perbarui di latar. Sekaligus "membangunkan" server lebih awal ── */
-const APP_VERSI='2.4.0',APP_BUILD=13; // naikkan APP_BUILD bersama API_BUILD (Api.gs) tiap rilis
+const APP_VERSI='2.4.1',APP_BUILD=14; // naikkan APP_BUILD bersama API_BUILD (Api.gs) tiap rilis
 function cekVersi(d){ // memberi tahu bila server (Apps Script) dan tampilan (GitHub) tidak sepasang
   const sb=Number(d&&d.build)||0,bar=$('#verbar');let m='';
   if(sb<APP_BUILD)m=`Server belum diperbarui (server ${d&&d.versi?'v'+d.versi:'versi lama'}, aplikasi v${APP_VERSI}). Ganti Kode.gs dan Api.gs di Apps Script, lalu Deploy → Manage deployments → pensil → New version.`;
